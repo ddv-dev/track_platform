@@ -14,12 +14,14 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
-    
+
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
+        print(f"Login attempt: {username}, {password}")  # временно
+
         user = authenticate(username=username, password=password)
-        
+        print(f"Authenticated user: {user}")
         if user:
             refresh = RefreshToken.for_user(user)
             return Response({
