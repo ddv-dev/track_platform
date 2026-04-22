@@ -136,3 +136,7 @@ CORS_ALLOWED_ORIGINS = [
 
 # Разрешаем передачу учётных данных (токенов)
 CORS_ALLOW_CREDENTIALS = True
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',  # резервный
+]

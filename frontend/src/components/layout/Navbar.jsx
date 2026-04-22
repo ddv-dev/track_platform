@@ -16,7 +16,7 @@ export const Navbar = () => {
           <Link to="/" className="flex items-center gap-2">
             <SchoolIcon sx={{ color: '#37EBFF', fontSize: 32 }} />
             <span className="text-white text-xl font-bold">
-              Track<span className="text-cyan">Platform</span>
+              МИСИС<span className="text-cyan">IT</span>
             </span>
           </Link>
           <div className="flex items-center gap-4">
