@@ -24,6 +24,14 @@ export const Navbar = () => {
               <>
                 <Link to="/tracks" className="text-white hover:text-cyan transition">Треки</Link>
                 <Link to="/chat" className="text-white hover:text-cyan transition">Чаты</Link>
+                {/* Ссылки для куратора */}
+                {user?.role === 'curator' && (
+                  <>
+                    <Link to="/curator/requests" className="text-white hover:text-cyan transition">Заявки</Link>
+                    <Link to="/curator/stats" className="text-white hover:text-cyan transition">Статистика</Link>
+                    <Link to="/curator/reviews" className="text-white hover:text-cyan transition">Проверка</Link>
+                  </>
+                )}
                 <Avatar
                   src={user?.avatar || undefined}
                   onClick={(e) => setAnchorEl(e.currentTarget)}
@@ -31,10 +39,12 @@ export const Navbar = () => {
                 >
                   {user?.first_name?.[0] || user?.username?.[0]}
                 </Avatar>
-                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                  <MenuItem onClick={() => { navigate('/profile'); setAnchorEl(null); }}>Профиль</MenuItem>
-                  <MenuItem onClick={logout}>Выйти</MenuItem>
-                </Menu>
+                {anchorEl && (
+                  <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                    <MenuItem onClick={() => { navigate('/profile'); setAnchorEl(null); }}>Профиль</MenuItem>
+                    <MenuItem onClick={logout}>Выйти</MenuItem>
+                  </Menu>
+                )}
               </>
             ) : (
               <div className="flex gap-3">

@@ -29,4 +29,13 @@ export const trackService = {
     const response = await api.get('/auth/progress/');
     return response.data;
   },
+
+  async createEnrollmentRequest(trackId) {
+    const response = await api.post(`/tracks/${trackId}/enroll/`);
+    return response.data;
+  },
+  async getStudentRequests() {
+    const response = await api.get('/auth/enrollment-requests/');
+    return response.data;
+  },
 };

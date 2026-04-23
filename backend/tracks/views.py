@@ -38,11 +38,10 @@ class PendingSubmissionsView(APIView):
     def get(self, request):
         if request.user.role != "curator":
             return Response({"error": "Доступ только кураторам"}, status=403)
-        # Задания, где куратор закреплён за треком (нужно добавить связь)
-        # Пока упростим – все pending для треков, где куратор закреплён
+        # Используем ManyToMany связь curators
         submissions = PracticalSubmission.objects.filter(
-            status="pending", task__track__curator=request.user
-        )
+            status="pending", task__track__curators=request.user
+        ).select_related("task", "user")
         serializer = PracticalSubmissionSerializer(submissions, many=True)
         return Response(serializer.data)
 
@@ -462,3 +461,38 @@ class CuratorStudentsView(APIView):
                         }
                     )
         return Response(students_data)
+
+
+class CuratorStudentsStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "curator":
+            return Response({"error": "Доступ только для кураторов"}, status=403)
+        tracks = request.user.tracks_as_curator.all()
+        result = []
+        for track in tracks:
+            group = Group.objects.filter(track=track).first()
+            if not group:
+                continue
+            for student in group.students.all():
+                progress = UserProgress.objects.filter(
+                    user=student, track=track
+                ).first()
+                total_tasks = track.tasks.count()
+                completed = progress.completed_tasks.count() if progress else 0
+                result.append(
+                    {
+                        "student_id": student.id,
+                        "name": student.get_full_name(),
+                        "track": track.name,
+                        "total_tasks": total_tasks,
+                        "completed_tasks": completed,
+                        "percentage": (
+                            round(completed / total_tasks * 100, 1)
+                            if total_tasks
+                            else 0
+                        ),
+                    }
+                )
+        return Response(result)

@@ -13,7 +13,7 @@ from .views import (
     ChecklistItemToggleView,
     TrackProgressView,
     TrackTasksView,
-    CuratorEnrollmentRequestsView
+    CuratorEnrollmentRequestsView,
 )
 
 urlpatterns = [
@@ -53,5 +53,5 @@ urlpatterns = [
         ReviewEnrollmentRequestView.as_view(),
         name="review-request",
     ),
-    path('curator/students/', CuratorStudentsView.as_view(), name='curator-students'),
+    path("curator/students/", CuratorStudentsView.as_view(), name="curator-students"),
 ]

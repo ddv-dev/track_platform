@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Typography, Paper, List, ListItem, ListItemText, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Chip, CircularProgress } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
-
+import api from '../services/api';
 export const PracticalReviewsPage = () => {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState([]);
