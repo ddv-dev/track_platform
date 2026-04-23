@@ -33,6 +33,13 @@ class Track(models.Model):
     image = models.ImageField(
         upload_to="tracks/", null=True, blank=True, verbose_name="Изображение"
     )
+    curators = models.ManyToManyField(
+        "accounts.User",
+        limit_choices_to={"role": "curator"},
+        blank=True,
+        related_name="tracks_as_curator",
+        verbose_name="Кураторы трека",
+    )
 
     class Meta:
         verbose_name = "Трек"
@@ -208,3 +215,60 @@ class PracticalSubmission(models.Model):
 
     class Meta:
         unique_together = ["user", "task"]
+
+
+class Group(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Название группы")
+    track = models.ForeignKey(
+        "tracks.Track",
+        on_delete=models.CASCADE,
+        related_name="groups",
+        verbose_name="Трек",
+    )
+    curator = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="curated_groups",
+        verbose_name="Куратор группы",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Группа"
+        verbose_name_plural = "Группы"
+
+    def __str__(self):
+        return self.name
+
+
+class EnrollmentRequest(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "На рассмотрении"),
+        ("accepted", "Принята"),
+        ("rejected", "Отклонена"),
+    )
+    student = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        limit_choices_to={"role": "student"},
+        related_name="enrollment_requests",
+    )
+    track = models.ForeignKey(
+        "tracks.Track", on_delete=models.CASCADE, related_name="enrollment_requests"
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        unique_together = ["student", "track"]
+        verbose_name = "Заявка на зачисление"
+        verbose_name_plural = "Заявки на зачисление"
+
+    def __str__(self):
+        return f"{self.student.username} -> {self.track.name} ({self.status})"

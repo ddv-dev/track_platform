@@ -48,11 +48,26 @@ export const TrackDetailPage = () => {
     }
   };
 
-  const handleTaskUpdate = (updatedTask) => {
-    // Обновляем задание в списке (например, после успешной отправки)
-    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-    // Также можно обновить прогресс трека
-    trackService.getTrackProgress(id).then(setProgress);
+  const handleTaskUpdate = async () => {
+    try {
+      const updatedTasks = await taskService.getTrackTasks(id);
+      setTasks(updatedTasks);
+      // Обновляем выбранное задание, если оно ещё актуально
+      if (selectedTask) {
+        const refreshed = updatedTasks.find(t => t.id === selectedTask.id);
+        if (refreshed) {
+          setSelectedTask(refreshed);
+        } else {
+          // Если задание исчезло (редко), выберем первое доступное
+          const unlocked = updatedTasks.find(t => !t.locked);
+          setSelectedTask(unlocked || updatedTasks[0]);
+        }
+      }
+      const newProgress = await trackService.getTrackProgress(id);
+      setProgress(newProgress);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   if (loading) return <div className="flex justify-center items-center h-screen"><CircularProgress sx={{ color: '#0541F0' }} /></div>;
@@ -90,7 +105,7 @@ export const TrackDetailPage = () => {
 
         {/* Вкладка "Гайды" */}
         <div hidden={tabValue !== 1} className="mt-8 space-y-4">{track.guides?.map((guide, idx) => (
-          <div key={guide.id} className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="bg-cyan/10 px-6 py-4"><Typography variant="h5" fontWeight="600" className="text-darkBlue">{idx+1}. {guide.title}</Typography></div><div className="p-6"><div className="prose max-w-none text-darkGray">{guide.content}</div></div></div>
+          <div key={guide.id} className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="bg-cyan/10 px-6 py-4"><Typography variant="h5" fontWeight="600" className="text-darkBlue">{idx + 1}. {guide.title}</Typography></div><div className="p-6"><div className="prose max-w-none text-darkGray">{guide.content}</div></div></div>
         ))}</div>
 
         {/* Вкладка "Задания" */}

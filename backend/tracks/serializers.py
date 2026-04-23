@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Direction,
+    EnrollmentRequest,
     Track,
     Guide,
     Checklist,
@@ -135,3 +136,22 @@ class PracticalSubmissionSerializer(serializers.ModelSerializer):
         model = PracticalSubmission
         fields = "__all__"
         read_only_fields = ("user", "submitted_at", "reviewed_at")
+
+
+class EnrollmentRequestSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.get_full_name", read_only=True)
+    track_name = serializers.CharField(source="track.name", read_only=True)
+
+    class Meta:
+        model = EnrollmentRequest
+        fields = (
+            "id",
+            "student",
+            "student_name",
+            "track",
+            "track_name",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("created_at", "updated_at")

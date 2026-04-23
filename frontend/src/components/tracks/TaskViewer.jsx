@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Paper, Typography, TextField, Button, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Checkbox, Alert, Chip, Box, CircularProgress } from '@mui/material';
 import { taskService } from '../../services/task.service';
 import toast from 'react-hot-toast';
@@ -12,6 +12,12 @@ export const TaskViewer = ({ task, trackId, onTaskUpdate }) => {
   const isAuto = task.task_type === 'single' || task.task_type === 'multiple';
   const isCompleted = task.completed;
 
+  // Сброс при переходе к другому заданию
+  useEffect(() => {
+    setAnswer('');
+    setResult(null);
+  }, [task]);
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
@@ -21,17 +27,14 @@ export const TaskViewer = ({ task, trackId, onTaskUpdate }) => {
         setResult({ isCorrect: response.is_correct, message: response.is_correct ? 'Правильно!' : 'Неправильно. Попробуйте ещё раз.' });
         if (response.is_correct) {
           toast.success(`Задание выполнено! +${task.points} баллов`);
-          // Обновляем задание (блокировка следующего)
-          onTaskUpdate({ ...task, completed: true });
+          onTaskUpdate();
         } else {
           toast.error('Ответ неверный');
         }
       } else {
-        // Практика: отправлено на проверку
         setResult({ isCorrect: null, message: 'Ответ отправлен на проверку куратору.' });
         toast.success('Ответ отправлен на проверку');
-        // Можно поменять состояние задания на "ожидает проверки"
-        onTaskUpdate({ ...task, status: 'pending' });
+        onTaskUpdate();
       }
     } catch (error) {
       const msg = error.response?.data?.error || 'Ошибка отправки';

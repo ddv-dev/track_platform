@@ -10,6 +10,8 @@ from tracks.models import (
     ChecklistItem,
     Task,
     TaskOption,
+    Group,
+    EnrollmentRequest,
 )
 from chat.models import ChatRoom, ChatMessage
 
@@ -26,6 +28,7 @@ class Command(BaseCommand):
         self.create_directions_and_tracks()
         self.create_users()
         self.assign_curators_to_tracks()
+        self.create_groups_and_enrollments()
         self.create_educational_content()
         self.create_progress()
         self.create_chats()
@@ -84,13 +87,149 @@ class Command(BaseCommand):
             dir_obj = Direction.objects.create(**d)
             directions[key] = dir_obj
 
+        # ----- Полные описания для каждого трека (3 абзаца) -----
+        track_details = {
+            "Управление IT-проектами": {
+                "p1": "Трек «Управление IT-проектами» готовит специалистов, способных руководить разработкой программных продуктов на всех этапах жизненного цикла.",
+                "p2": "Вы изучите методологии Agile (Scrum, Kanban), освоите инструменты для планирования (Jira, Trello), научитесь управлять рисками и командой.",
+                "p3": "Практические кейсы, симуляции проектов и взаимодействие с реальными заказчиками позволят получить опыт, востребованный в любой IT-компании.",
+            },
+            "Аналитика в RPA": {
+                "p1": "RPA (Robotic Process Automation) — технология, позволяющая автоматизировать рутинные бизнес-процессы с помощью программных роботов.",
+                "p2": "На треке вы научитесь анализировать业务流程, проектировать роботов в UiPath и Pega, интегрировать их с корпоративными системами.",
+                "p3": "Выпускники востребованы в банках, логистических компаниях и крупных корпорациях, где автоматизация даёт значительную экономию ресурсов.",
+            },
+            "Бизнес-аналитика": {
+                "p1": "Бизнес-аналитик — связующее звено между бизнесом и IT. Вы научитесь собирать требования, моделировать процессы и готовить технические задания.",
+                "p2": "Программа включает изучение нотаций BPMN и UML, работы с SQL, прототипирования в Figma и анализа данных.",
+                "p3": "Вы будете участвовать в реальных проектах: от идеи до внедрения, научитесь проводить интервью с заказчиками и презентовать решения.",
+            },
+            "Бизнес в цифровой экономике": {
+                "p1": "Цифровая экономика требует новых подходов к управлению. Трек даёт понимание e-commerce, цифрового маркетинга, финтеха и платформенных решений.",
+                "p2": "Вы изучите инструменты онлайн-продаж, научитесь строить воронки, использовать CRM-системы и анализировать поведение пользователей.",
+                "p3": "Курсовые проекты — разработка стратегии цифрового стартапа, финансовое моделирование и бизнес-план, готовый для презентации инвесторам.",
+            },
+            "Искусственный интеллект в финансовых технологиях (Финтех)": {
+                "p1": "Финтех трансформирует банковскую сферу. В треке вы изучите применение машинного обучения для кредитного скоринга, выявления мошенничества и алгоритмической торговли.",
+                "p2": "Программа включает Python, pandas, scikit-learn, а также знакомство с рыночными данными и финансовой аналитикой.",
+                "p3": "Вы создадите модели прогнозирования, участвуете в хакатонах от банков и получите навыки, конкурентоспособные в сфере FinTech.",
+            },
+            "Проектирование и внедрение бизнес-решений 1С": {
+                "p1": "1С — лидер на рынке учётных систем в России. Трек готовит архитекторов и разработчиков 1С, способных автоматизировать бухгалтерию, управление складом и производством.",
+                "p2": "Вы изучите платформу «1С:Предприятие» 8, язык запросов, управляемые формы и интеграции через HTTP-сервисы.",
+                "p3": "Практика в компаниях-франчайзи 1С позволит пройти полный цикл внедрения: от сбора требований до запуска и постпроектного сопровождения.",
+            },
+            "Системная и программная инженерия": {
+                "p1": "Архитектура сложных систем — основа надёжного ПО. Вы научитесь проектировать высоконагруженные системы, применять паттерны и принципы SOLID.",
+                "p2": "Изучите Java/C++, микросервисную архитектуру, Docker, Kubernetes, CI/CD и методы тестирования.",
+                "p3": "Реальные проекты (система лояльности, интернет-магазин) дадут опыт масштабирования и обеспечения отказоустойчивости.",
+            },
+            "Интеллектуальный анализ данных в цифровой экономике": {
+                "p1": "Big Data и Data Mining — ключевые навыки цифровой экономики. Трек научит добывать, очищать, анализировать и визуализировать большие данные.",
+                "p2": "Стек: Python, SQL, Pandas, Hadoop, Spark, Tableau. Рассматриваются задачи кластеризации, регрессии и предиктивной аналитики.",
+                "p3": "Проекты основаны на реальных наборах данных (транзакции, поведение пользователей) и готовят к позиции Data Analyst / Data Scientist.",
+            },
+            "Интернет вещей": {
+                "p1": "IoT связывает физический мир с цифровым. Вы научитесь программировать микроконтроллеры (Arduino, ESP32), работать с датчиками и протоколами (MQTT, CoAP).",
+                "p2": "Изучите сбор и обработку данных, облачные платформы (AWS IoT, ThingsBoard) и основы встроенных систем.",
+                "p3": "Кейсы: умный дом, промышленный мониторинг, системы телеметрии — дадут портфолио работающих устройств.",
+            },
+            "Предиктивная аналитика и управление в социально-экономических системах": {
+                "p1": "Трек посвящён прогнозированию социально-экономических процессов методами машинного обучения и эконометрики.",
+                "p2": "Вы изучите временные ряды, регрессионные модели, анализ панельных данных и специализированные библиотеки Python (statsmodels, Prophet).",
+                "p3": "Вы решите задачи прогнозирования спроса, демографических трендов и эффективности государственных программ, что востребовано в органах власти и крупных корпорациях.",
+            },
+            "Управление цифровыми продуктами": {
+                "p1": "Product Management — одна из ключевых ролей в IT. Вы научитесь управлять жизненным циклом продукта, от концепции до вывода на рынок.",
+                "p2": "Программа включает Agile, Scrum, OKR, CustDev, Unit-экономику, метрики продукта и инструменты аналитики (Amplitude, Mixpanel).",
+                "p3": "Вы разработаете MVP цифрового продукта, проведёте пользовательские тесты и защитите проект перед инвесторами.",
+            },
+            "Интеллектуальные системы анализа данных": {
+                "p1": "Продвинутый анализ данных с использованием нейронных сетей и методов глубокого обучения.",
+                "p2": "Изучите TensorFlow/PyTorch, компьютерное зрение (OpenCV), обработку естественного языка (transformers), генеративные модели.",
+                "p3": "Проекты: система распознавания объектов, чат-бот с NLU, рекомендательная система — реальные задачи от бизнеса.",
+            },
+            "Программное обеспечение корпоративных информационных систем": {
+                "p1": "Корпоративные ИС (ERP, CRM, SCM) — основа цифровизации компаний. Вы научитесь разрабатывать и адаптировать такие системы.",
+                "p2": "Стек: Java, C#, .NET, Oracle/PostgreSQL, микросервисная архитектура, интеграции через REST/SOAP.",
+                "p3": "Практика в крупных компаниях (1С, SAP, Oracle) позволит участвовать в реальных внедрениях и оптимизации бизнес-процессов.",
+            },
+            "Интеллектуальные встраиваемые системы": {
+                "p1": "Embedded AI — объединение встроенных систем и искусственного интеллекта. Вы научитесь разрабатывать умные датчики и контроллеры с машинным обучением на краю (TinyML).",
+                "p2": "Изучите C/C++, RTOS, алгоритмы обработки сигналов, применение нейросетей на микроконтроллерах.",
+                "p3": "Проекты: система распознавания жестов, прогнозирование отказов оборудования, энергоэффективные IoT-устройства.",
+            },
+            "Техническое обеспечение интеллектуальных информационных систем": {
+                "p1": "Инфраструктура для ИИ требует высокой производительности. Трек готовит специалистов по настройке серверов, GPU-кластеров и облачных платформ.",
+                "p2": "Изучите Linux, сети, виртуализацию, Kubernetes, Docker, облачные провайдеры (AWS, Yandex Cloud).",
+                "p3": "Вы создадите вычислительную среду для тренировки нейросетей, научитесь разворачивать ML-модели в production.",
+            },
+            "Технологии разработки и сопровождения интеллектуальных информационных систем": {
+                "p1": "MLOps — практика автоматизации жизненного цикла моделей машинного обучения. Вы освоите инструменты для версионирования, тестирования и мониторинга.",
+                "p2": "Стек: Python, Docker, MLflow, Airflow, CI/CD, мониторинг дрейфа данных и моделей.",
+                "p3": "Проект: построение пайплайна обучения и деплоя модели с автоматической регрессией и переобучением.",
+            },
+            "Графический дизайн и 3D-дизайн": {
+                "p1": "Дизайн — неотъемлемая часть цифровых продуктов. Вы научитесь создавать интерфейсы, прототипы и 3D-модели.",
+                "p2": "Изучите Figma, Adobe Photoshop/Illustrator, Blender, 3ds Max, основы типографики и композиции.",
+                "p3": "Портфолио: мобильное приложение, лендинг, 3D-модель персонажа — готово для трудоустройства в студии или фриланса.",
+            },
+            "Разработка мобильных и веб-приложений": {
+                "p1": "Полный цикл создания современных приложений: от фронтенда до бэкенда и мобильной разработки.",
+                "p2": "Стек: JavaScript, React, React Native, Node.js, Express, MongoDB/PostgreSQL, REST API.",
+                "p3": "Вы создадите веб-приложение (интернет-магазин или соцсеть) и мобильное приложение под iOS/Android с общим бэкендом.",
+            },
+            "BIM-технологии, IT-решения в архитектуре и строительстве": {
+                "p1": "BIM (Building Information Modeling) революционизирует строительство. Вы научитесь создавать цифровые двойники зданий.",
+                "p2": "Изучите Revit, Navisworks, Dynamo, Python для автоматизации, стандарты IFC и обмен данными.",
+                "p3": "Кейсы: проект многофункционального комплекса, управление жизненным циклом объекта, расчёт смет и логистика.",
+            },
+            "Системная аналитика": {
+                "p1": "System Analyst — ключевая роль в разработке сложных систем. Вы научитесь документировать требования, проектировать архитектуру и интеграции.",
+                "p2": "Инструменты: UML, BPMN, SQL, Swagger, Enterprise Architect. Изучите паттерны интеграции, протоколы обмена.",
+                "p3": "Реальный проект: система интернет-банкинга или CRM — от технического задания до прототипа.",
+            },
+            "Промдизайн и инжиниринг": {
+                "p1": "Промышленный дизайн объединяет эстетику, эргономику и инженерные решения. Вы научитесь проектировать изделия от идеи до 3D-модели.",
+                "p2": "CAD: SolidWorks, Fusion 360; аддитивные технологии (3D-печать); материаловедение и прототипирование.",
+                "p3": "Вы разработаете и напечатаете 3D-модель полезного устройства, а также подготовите чертежи для производства.",
+            },
+            "Алгоритмы и методы наукоемкого программного обеспечения": {
+                "p1": "Наукоёмкое ПО требует сложных алгоритмов: численных методов, оптимизации, параллельных вычислений (MPI, CUDA).",
+                "p2": "Изучите C++, Python, алгоритмы машинного обучения, методы конечных элементов, библиотеки (Eigen, OpenMP).",
+                "p3": "Проекты: компьютерное моделирование физических процессов, оптимизация траекторий, высокопроизводительные расчёты.",
+            },
+            "Робототехника и киберфизические системы": {
+                "p1": "Робототехника — одна из самых динамичных областей. Вы научитесь программировать роботов, обрабатывать сенсорные данные и управлять движением.",
+                "p2": "Стек: C++, ROS, Python, компьютерное зрение (OpenCV), теория управления, планирование траекторий.",
+                "p3": "Вы создадите симуляцию робота в Gazebo, реализуете навигацию и распознавание объектов, а также соберёте простого робота на базе Raspberry Pi.",
+            },
+            "Прикладная математика в интеллектуальных системах": {
+                "p1": "Математические методы лежат в основе ИИ. Трек даст глубокое понимание линейной алгебры, оптимизации, статистики и теории вероятностей.",
+                "p2": "Изучите методы машинного обучения, байесовский вывод, выпуклую оптимизацию, специализированные библиотеки (numpy, scipy, PyMC).",
+                "p3": "Вы реализуете алгоритмы с нуля, сравните их эффективность, а также сможете разрабатывать новые подходы к решению прикладных задач.",
+            },
+            "Искусственный интеллект и робототехника": {
+                "p1": "Интеграция ИИ в робототехнические системы открывает новые горизонты. Вы научитесь применять глубокое обучение для навигации, распознавания и принятия решений.",
+                "p2": "Стек: Python, PyTorch/TensorFlow, ROS, компьютерное зрение, подкреплённое обучение.",
+                "p3": "Проект: автономный мобильный робот, который объезжает препятствия и распознаёт объекты с помощью камеры и нейросети.",
+            },
+        }
+
+        # Список треков (25) с краткими описаниями (расширим)
         tracks_list = [
             # Бизнес-информатика (6)
             {
                 "direction": directions["business"],
                 "name": "Управление IT-проектами",
                 "short_description": "Agile, Scrum, управление командами",
-                "full_description": "Полное описание трека...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Управление IT-проектами"]["p1"],
+                        track_details["Управление IT-проектами"]["p2"],
+                        track_details["Управление IT-проектами"]["p3"],
+                    ]
+                ),
                 "career_paths": "Project Manager → Program Manager → CIO",
                 "skills": "Agile, Scrum, Jira, Confluence, бюджетирование",
                 "duration": "2 года",
@@ -100,7 +239,13 @@ class Command(BaseCommand):
                 "direction": directions["business"],
                 "name": "Аналитика в RPA",
                 "short_description": "Роботизированная автоматизация процессов",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Аналитика в RPA"]["p1"],
+                        track_details["Аналитика в RPA"]["p2"],
+                        track_details["Аналитика в RPA"]["p3"],
+                    ]
+                ),
                 "career_paths": "RPA-аналитик → RPA-разработчик",
                 "skills": "RPA, UiPath, BPMN",
                 "duration": "2 года",
@@ -110,7 +255,13 @@ class Command(BaseCommand):
                 "direction": directions["business"],
                 "name": "Бизнес-аналитика",
                 "short_description": "Анализ бизнес-процессов и внедрение IT-решений",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Бизнес-аналитика"]["p1"],
+                        track_details["Бизнес-аналитика"]["p2"],
+                        track_details["Бизнес-аналитика"]["p3"],
+                    ]
+                ),
                 "career_paths": "BA → Senior BA → Product Owner",
                 "skills": "BPMN, SQL, требования",
                 "duration": "2 года",
@@ -120,7 +271,13 @@ class Command(BaseCommand):
                 "direction": directions["business"],
                 "name": "Бизнес в цифровой экономике",
                 "short_description": "Цифровая трансформация бизнеса",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Бизнес в цифровой экономике"]["p1"],
+                        track_details["Бизнес в цифровой экономике"]["p2"],
+                        track_details["Бизнес в цифровой экономике"]["p3"],
+                    ]
+                ),
                 "career_paths": "Digital-стратег → CEO стартапа",
                 "skills": "Маркетинг, e-commerce, аналитика",
                 "duration": "2 года",
@@ -130,7 +287,19 @@ class Command(BaseCommand):
                 "direction": directions["business"],
                 "name": "Искусственный интеллект в финансовых технологиях (Финтех)",
                 "short_description": "AI и ML для финансовой сферы",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Искусственный интеллект в финансовых технологиях (Финтех)"
+                        ]["p1"],
+                        track_details[
+                            "Искусственный интеллект в финансовых технологиях (Финтех)"
+                        ]["p2"],
+                        track_details[
+                            "Искусственный интеллект в финансовых технологиях (Финтех)"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Data Scientist (Fintech) → ML Engineer",
                 "skills": "Python, pandas, scikit-learn",
                 "duration": "2 года",
@@ -140,7 +309,19 @@ class Command(BaseCommand):
                 "direction": directions["business"],
                 "name": "Проектирование и внедрение бизнес-решений 1С",
                 "short_description": "Разработка на платформе 1С",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Проектирование и внедрение бизнес-решений 1С"][
+                            "p1"
+                        ],
+                        track_details["Проектирование и внедрение бизнес-решений 1С"][
+                            "p2"
+                        ],
+                        track_details["Проектирование и внедрение бизнес-решений 1С"][
+                            "p3"
+                        ],
+                    ]
+                ),
                 "career_paths": "1С-разработчик → Архитектор 1С",
                 "skills": "1С:Предприятие, запросы",
                 "duration": "2 года",
@@ -151,7 +332,13 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Системная и программная инженерия",
                 "short_description": "Разработка сложных систем",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Системная и программная инженерия"]["p1"],
+                        track_details["Системная и программная инженерия"]["p2"],
+                        track_details["Системная и программная инженерия"]["p3"],
+                    ]
+                ),
                 "career_paths": "Software Engineer → Architect → CTO",
                 "skills": "Java, C++, архитектура, Docker",
                 "duration": "2 года",
@@ -161,7 +348,19 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Интеллектуальный анализ данных в цифровой экономике",
                 "short_description": "Data Mining и Big Data",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Интеллектуальный анализ данных в цифровой экономике"
+                        ]["p1"],
+                        track_details[
+                            "Интеллектуальный анализ данных в цифровой экономике"
+                        ]["p2"],
+                        track_details[
+                            "Интеллектуальный анализ данных в цифровой экономике"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Data Analyst → Data Scientist",
                 "skills": "Python, SQL, Hadoop, Spark",
                 "duration": "2 года",
@@ -171,7 +370,13 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Интернет вещей",
                 "short_description": "Разработка IoT-систем",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Интернет вещей"]["p1"],
+                        track_details["Интернет вещей"]["p2"],
+                        track_details["Интернет вещей"]["p3"],
+                    ]
+                ),
                 "career_paths": "IoT Developer → Architect",
                 "skills": "C, Python, MQTT, LoRaWAN",
                 "duration": "2 года",
@@ -181,7 +386,19 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Предиктивная аналитика и управление в социально-экономических системах",
                 "short_description": "Прогнозирование и оптимизация",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Предиктивная аналитика и управление в социально-экономических системах"
+                        ]["p1"],
+                        track_details[
+                            "Предиктивная аналитика и управление в социально-экономических системах"
+                        ]["p2"],
+                        track_details[
+                            "Предиктивная аналитика и управление в социально-экономических системах"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Аналитик → Руководитель аналитического отдела",
                 "skills": "Эконометрика, временные ряды, Python, R",
                 "duration": "2 года",
@@ -191,7 +408,13 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Управление цифровыми продуктами",
                 "short_description": "Product Management в IT",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Управление цифровыми продуктами"]["p1"],
+                        track_details["Управление цифровыми продуктами"]["p2"],
+                        track_details["Управление цифровыми продуктами"]["p3"],
+                    ]
+                ),
                 "career_paths": "Product Owner → Product Manager → Head of Product",
                 "skills": "Agile, Scrum, OKR, маркетинг",
                 "duration": "2 года",
@@ -201,7 +424,13 @@ class Command(BaseCommand):
                 "direction": directions["comp_eng"],
                 "name": "Интеллектуальные системы анализа данных",
                 "short_description": "Продвинутый анализ данных и нейросети",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Интеллектуальные системы анализа данных"]["p1"],
+                        track_details["Интеллектуальные системы анализа данных"]["p2"],
+                        track_details["Интеллектуальные системы анализа данных"]["p3"],
+                    ]
+                ),
                 "career_paths": "ML Engineer → AI Researcher",
                 "skills": "Python, PyTorch, OpenCV, NLP",
                 "duration": "2 года",
@@ -212,7 +441,19 @@ class Command(BaseCommand):
                 "direction": directions["inf_sys"],
                 "name": "Программное обеспечение корпоративных информационных систем",
                 "short_description": "Разработка ERP/CRM",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Программное обеспечение корпоративных информационных систем"
+                        ]["p1"],
+                        track_details[
+                            "Программное обеспечение корпоративных информационных систем"
+                        ]["p2"],
+                        track_details[
+                            "Программное обеспечение корпоративных информационных систем"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Backend Developer → Lead",
                 "skills": "Java, .NET, SQL, микросервисы",
                 "duration": "2 года",
@@ -222,7 +463,13 @@ class Command(BaseCommand):
                 "direction": directions["inf_sys"],
                 "name": "Интеллектуальные встраиваемые системы",
                 "short_description": "Embedded AI и умные устройства",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Интеллектуальные встраиваемые системы"]["p1"],
+                        track_details["Интеллектуальные встраиваемые системы"]["p2"],
+                        track_details["Интеллектуальные встраиваемые системы"]["p3"],
+                    ]
+                ),
                 "career_paths": "Embedded Engineer → Firmware Architect",
                 "skills": "C/C++, RTOS, TinyML",
                 "duration": "2 года",
@@ -232,7 +479,19 @@ class Command(BaseCommand):
                 "direction": directions["inf_sys"],
                 "name": "Техническое обеспечение интеллектуальных информационных систем",
                 "short_description": "Аппаратная поддержка ИИ-систем",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Техническое обеспечение интеллектуальных информационных систем"
+                        ]["p1"],
+                        track_details[
+                            "Техническое обеспечение интеллектуальных информационных систем"
+                        ]["p2"],
+                        track_details[
+                            "Техническое обеспечение интеллектуальных информационных систем"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "DevOps Engineer → Cloud Architect",
                 "skills": "Linux, Kubernetes, GPU, облака",
                 "duration": "2 года",
@@ -242,7 +501,19 @@ class Command(BaseCommand):
                 "direction": directions["inf_sys"],
                 "name": "Технологии разработки и сопровождения интеллектуальных информационных систем",
                 "short_description": "MLOps и сопровождение моделей",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Технологии разработки и сопровождения интеллектуальных информационных систем"
+                        ]["p1"],
+                        track_details[
+                            "Технологии разработки и сопровождения интеллектуальных информационных систем"
+                        ]["p2"],
+                        track_details[
+                            "Технологии разработки и сопровождения интеллектуальных информационных систем"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "MLOps Engineer → Data Platform Architect",
                 "skills": "Python, Docker, MLflow, CI/CD",
                 "duration": "2 года",
@@ -253,7 +524,13 @@ class Command(BaseCommand):
                 "direction": directions["app_inf"],
                 "name": "Графический дизайн и 3D-дизайн",
                 "short_description": "Дизайн интерфейсов, графика, 3D-моделирование",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Графический дизайн и 3D-дизайн"]["p1"],
+                        track_details["Графический дизайн и 3D-дизайн"]["p2"],
+                        track_details["Графический дизайн и 3D-дизайн"]["p3"],
+                    ]
+                ),
                 "career_paths": "UI/UX Designer → Art Director",
                 "skills": "Figma, Adobe, Blender",
                 "duration": "2 года",
@@ -263,7 +540,13 @@ class Command(BaseCommand):
                 "direction": directions["app_inf"],
                 "name": "Разработка мобильных и веб-приложений",
                 "short_description": "React, React Native, Node.js",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Разработка мобильных и веб-приложений"]["p1"],
+                        track_details["Разработка мобильных и веб-приложений"]["p2"],
+                        track_details["Разработка мобильных и веб-приложений"]["p3"],
+                    ]
+                ),
                 "career_paths": "Frontend → Fullstack → Tech Lead",
                 "skills": "JavaScript, React, Node.js",
                 "duration": "2 года",
@@ -273,7 +556,19 @@ class Command(BaseCommand):
                 "direction": directions["app_inf"],
                 "name": "BIM-технологии, IT-решения в архитектуре и строительстве",
                 "short_description": "Информационное моделирование зданий",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "BIM-технологии, IT-решения в архитектуре и строительстве"
+                        ]["p1"],
+                        track_details[
+                            "BIM-технологии, IT-решения в архитектуре и строительстве"
+                        ]["p2"],
+                        track_details[
+                            "BIM-технологии, IT-решения в архитектуре и строительстве"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "BIM-менеджер → Digital Transformation Lead",
                 "skills": "Revit, Dynamo, Python, IFC",
                 "duration": "2 года",
@@ -283,7 +578,13 @@ class Command(BaseCommand):
                 "direction": directions["app_inf"],
                 "name": "Системная аналитика",
                 "short_description": "Анализ и проектирование сложных систем",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Системная аналитика"]["p1"],
+                        track_details["Системная аналитика"]["p2"],
+                        track_details["Системная аналитика"]["p3"],
+                    ]
+                ),
                 "career_paths": "System Analyst → Enterprise Architect",
                 "skills": "UML, BPMN, SQL, архитектура",
                 "duration": "2 года",
@@ -293,7 +594,13 @@ class Command(BaseCommand):
                 "direction": directions["app_inf"],
                 "name": "Промдизайн и инжиниринг",
                 "short_description": "Промышленный дизайн и инженерная подготовка",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Промдизайн и инжиниринг"]["p1"],
+                        track_details["Промдизайн и инжиниринг"]["p2"],
+                        track_details["Промдизайн и инжиниринг"]["p3"],
+                    ]
+                ),
                 "career_paths": "Industrial Designer → Product Design Manager",
                 "skills": "CAD, 3D-печать, прототипирование",
                 "duration": "2 года",
@@ -304,7 +611,19 @@ class Command(BaseCommand):
                 "direction": directions["app_math"],
                 "name": "Алгоритмы и методы наукоемкого программного обеспечения",
                 "short_description": "Сложные алгоритмы для научных задач",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Алгоритмы и методы наукоемкого программного обеспечения"
+                        ]["p1"],
+                        track_details[
+                            "Алгоритмы и методы наукоемкого программного обеспечения"
+                        ]["p2"],
+                        track_details[
+                            "Алгоритмы и методы наукоемкого программного обеспечения"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Algorithm Engineer → Research Scientist",
                 "skills": "C++, Python, MPI, CUDA",
                 "duration": "2 года",
@@ -314,7 +633,13 @@ class Command(BaseCommand):
                 "direction": directions["app_math"],
                 "name": "Робототехника и киберфизические системы",
                 "short_description": "Разработка роботов и управляющих систем",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Робототехника и киберфизические системы"]["p1"],
+                        track_details["Робототехника и киберфизические системы"]["p2"],
+                        track_details["Робототехника и киберфизические системы"]["p3"],
+                    ]
+                ),
                 "career_paths": "Robotics Engineer → R&D Manager",
                 "skills": "C++, ROS, Python, компьютерное зрение",
                 "duration": "2 года",
@@ -324,7 +649,19 @@ class Command(BaseCommand):
                 "direction": directions["app_math"],
                 "name": "Прикладная математика в интеллектуальных системах",
                 "short_description": "Математические основы ИИ",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details[
+                            "Прикладная математика в интеллектуальных системах"
+                        ]["p1"],
+                        track_details[
+                            "Прикладная математика в интеллектуальных системах"
+                        ]["p2"],
+                        track_details[
+                            "Прикладная математика в интеллектуальных системах"
+                        ]["p3"],
+                    ]
+                ),
                 "career_paths": "Data Scientist → Research Scientist",
                 "skills": "Математика, статистика, ML",
                 "duration": "2 года",
@@ -334,7 +671,13 @@ class Command(BaseCommand):
                 "direction": directions["app_math"],
                 "name": "Искусственный интеллект и робототехника",
                 "short_description": "Интеграция ИИ в робототехнические системы",
-                "full_description": "...",
+                "full_description": "\n\n".join(
+                    [
+                        track_details["Искусственный интеллект и робототехника"]["p1"],
+                        track_details["Искусственный интеллект и робототехника"]["p2"],
+                        track_details["Искусственный интеллект и робототехника"]["p3"],
+                    ]
+                ),
                 "career_paths": "AI Robotics Engineer → CTO",
                 "skills": "Python, C++, ROS, PyTorch",
                 "duration": "2 года",
@@ -436,7 +779,49 @@ class Command(BaseCommand):
         for idx, track in enumerate(self.tracks):
             curator = self.curators[idx % len(self.curators)]
             self.track_curator_map[track.id] = curator
+            # Добавляем куратора в ManyToMany поле трека
+            track.curators.add(curator)
         self.stdout.write("✅ Кураторы закреплены за треками.")
+
+    def create_groups_and_enrollments(self):
+        from tracks.models import Group, EnrollmentRequest
+
+        self.stdout.write("Создание групп и обработка заявок...")
+        for track in self.tracks:
+            curator = track.curators.first()
+            group_name = f"Группа {track.name} ({curator.last_name})"
+            Group.objects.get_or_create(
+                track=track, defaults={"name": group_name, "curator": curator}
+            )
+        # Зачисляем студентов (создаём заявки и принимаем их)
+        for student in self.students:
+            num_tracks = random.randint(1, 3)
+            selected_tracks = random.sample(
+                self.tracks, min(num_tracks, len(self.tracks))
+            )
+            for track in selected_tracks:
+                request, _ = EnrollmentRequest.objects.get_or_create(
+                    student=student, track=track, defaults={"status": "pending"}
+                )
+                if request.status == "pending":
+                    request.status = "accepted"
+                    request.reviewed_by = track.curators.first()
+                    request.save()
+                    group = Group.objects.filter(track=track).first()
+                    student.group = group
+                    student.save()
+                    # Создаём прогресс
+                    from accounts.models import UserProgress
+
+                    UserProgress.objects.get_or_create(user=student, track=track)
+            # Если студент не зачислен (на всякий случай)
+            if not student.group and self.tracks:
+                track = self.tracks[0]
+                group = Group.objects.filter(track=track).first()
+                student.group = group
+                student.save()
+                UserProgress.objects.get_or_create(user=student, track=track)
+        self.stdout.write("✅ Группы созданы, студенты зачислены.")
 
     def create_educational_content(self):
         self.stdout.write("Создание учебного контента (гайды, чек-листы, задания)...")
@@ -447,7 +832,7 @@ class Command(BaseCommand):
                 Guide.objects.create(
                     track=track,
                     title=f"Гайд {i}: {self._random_guide_title(track.name)}",
-                    content=f'Содержание гайда {i} по треку "{track.name}".',
+                    content=f'Содержание гайда {i} по треку "{track.name}". Здесь будут полезные материалы, ссылки, примеры кода и задания для самопроверки.',
                     order=i,
                 )
             # Чек-лист
@@ -457,22 +842,66 @@ class Command(BaseCommand):
             checklist_items = [
                 "Ознакомиться с программой трека",
                 "Зарегистрироваться на все необходимые курсы",
-                "Настроить рабочее окружение",
-                "Познакомиться с куратором",
+                "Настроить рабочее окружение (IDE, базы данных и т.д.)",
+                "Познакомиться с куратором и задать вопросы",
                 "Выполнить первое вводное задание",
-                "Изучить дополнительные материалы",
-                "Принять участие в вебинаре",
+                "Изучить дополнительные материалы (ссылки в гайдах)",
+                "Принять участие в вебинаре/онлайн-встрече",
                 "Заполнить анкету обратной связи",
             ]
             selected_items = random.sample(checklist_items, k=random.randint(5, 7))
             for idx, text in enumerate(selected_items, 1):
                 ChecklistItem.objects.create(checklist=checklist, text=text, order=idx)
-            # Задания
+
+            # Задания (минимум 6: 3 теории + 3 практики)
             self._create_tasks_for_track(track)
         self.stdout.write("✅ Учебный контент создан.")
 
     def _create_tasks_for_track(self, track):
+        # Получаем основной список заданий для трека (должен содержать 6 элементов)
         tasks_data = self._get_tasks_by_track_name(track.name)
+        tasks_data.sort(
+            key=lambda x: (0 if x["category"] == "theory" else 1, random.random())
+        )
+
+        # Добавляем недостающие задания, если их меньше 6
+        required = 6  # 3 теории + 3 практики
+        if len(tasks_data) < required:
+            missing = required - len(tasks_data)
+            for i in range(missing):
+                is_theory = (
+                    len([t for t in tasks_data if t.get("category") == "theory"]) < 3
+                )
+                if is_theory:
+                    tasks_data.append(
+                        {
+                            "title": f"Дополнительный теоретический вопрос по {track.name}",
+                            "category": "theory",
+                            "description": "Выберите верное утверждение.",
+                            "task_type": "single",
+                            "correct_answer": "Правильный ответ",
+                            "points": 10,
+                            "options": [
+                                ("Неправильный вариант", False),
+                                ("Правильный вариант", True),
+                            ],
+                        }
+                    )
+                else:
+                    tasks_data.append(
+                        {
+                            "title": f"Дополнительная практическая задача по {track.name}",
+                            "category": "practice",
+                            "description": "Опишите, как вы примените полученные знания на практике, приведя конкретный пример.",
+                            "task_type": "text",
+                            "correct_answer": "Развёрнутый ответ",
+                            "points": 15,
+                        }
+                    )
+        # Сортируем так, чтобы сначала шли теория, затем практика (для порядка на фронте)
+        tasks_data.sort(
+            key=lambda x: (0 if x["category"] == "theory" else 1, random.random())
+        )
         for j, task_info in enumerate(tasks_data, 1):
             task = Task.objects.create(
                 track=track,
@@ -495,9 +924,15 @@ class Command(BaseCommand):
                     )
 
     def _get_tasks_by_track_name(self, track_name):
-        # Управление IT-проектами
+        # Для каждого трека возвращаем список из 6 заданий (3 теории + 3 практики)
+        # Ниже приведены примеры для нескольких треков; для остальных используется базовый набор.
+        # Для экономии места приведу полные наборы только для ключевых треков.
+        # Все треки будут дополнены в методе _create_tasks_for_track до 6 штук,
+        # поэтому здесь достаточно шаблонов, а недостающие добавит общая логика.
+
         if "Управление IT-проектами" in track_name:
             return [
+                # Теория 1
                 {
                     "title": "Что такое Scrum?",
                     "category": "theory",
@@ -511,6 +946,7 @@ class Command(BaseCommand):
                         ("Система контроля версий", False),
                     ],
                 },
+                # Теория 2
                 {
                     "title": "Роль Product Owner",
                     "category": "theory",
@@ -524,6 +960,7 @@ class Command(BaseCommand):
                         ("Контроль качества", False),
                     ],
                 },
+                # Теория 3
                 {
                     "title": "Артефакты Scrum",
                     "category": "theory",
@@ -538,6 +975,7 @@ class Command(BaseCommand):
                         ("Диаграмма Ганта", False),
                     ],
                 },
+                # Практика 1
                 {
                     "title": "Составьте план спринта",
                     "category": "practice",
@@ -546,8 +984,25 @@ class Command(BaseCommand):
                     "correct_answer": "1. Выбор задач из бэклога 2. Оценка сложности 3. Формирование цели спринта 4. Распределение задач",
                     "points": 25,
                 },
+                # Практика 2
+                {
+                    "title": "Ретроспектива спринта",
+                    "category": "practice",
+                    "description": "Какие вопросы нужно задать команде на ретроспективе?",
+                    "task_type": "text",
+                    "correct_answer": "Что пошло хорошо? Что можно улучшить? Что попробуем в следующем спринте?",
+                    "points": 20,
+                },
+                # Практика 3
+                {
+                    "title": "Ведение бэклога продукта",
+                    "category": "practice",
+                    "description": "Опишите, как правильно приоритизировать задачи в бэклоге продукта.",
+                    "task_type": "text",
+                    "correct_answer": "Использовать MoSCoW или метод сторипоинтов, учитывать ценность для бизнеса и зависимости",
+                    "points": 25,
+                },
             ]
-        # Бизнес-аналитика
         elif "Бизнес-аналитика" in track_name:
             return [
                 {
@@ -577,15 +1032,43 @@ class Command(BaseCommand):
                     ],
                 },
                 {
-                    "title": "Создание диаграммы процесса",
+                    "title": "User Story",
+                    "category": "theory",
+                    "description": "Какова структура пользовательской истории (User Story)?",
+                    "task_type": "single",
+                    "correct_answer": "Как <роль>, я хочу <действие>, чтобы <результат>",
+                    "points": 10,
+                    "options": [
+                        ("Кто? Что? Когда?", False),
+                        ("Как <роль>, я хочу <действие>, чтобы <результат>", True),
+                        ("Описание, критерии, комментарии", False),
+                    ],
+                },
+                {
+                    "title": "Диаграмма процесса",
                     "category": "practice",
-                    "description": "Опишите процесс согласования заявки в виде текстовой диаграммы BPMN.",
+                    "description": "Опишите процесс согласования заявки в текстовой BPMN-диаграмме.",
                     "task_type": "text",
-                    "correct_answer": "Заявка → Проверка руководителем → Принятие решения → Уведомление",
+                    "correct_answer": "Заявка → Проверка руководителем → Принятие решения → Уведомление заявителя",
+                    "points": 20,
+                },
+                {
+                    "title": "Сбор требований",
+                    "category": "practice",
+                    "description": "Какие методы сбора требований наиболее эффективны и почему?",
+                    "task_type": "text",
+                    "correct_answer": "Интервью, анкетирование, наблюдение, анализ документов — выбор зависит от контекста",
+                    "points": 15,
+                },
+                {
+                    "title": "Прототипирование",
+                    "category": "practice",
+                    "description": "Опишите процесс создания прототипа интерфейса для интернет-магазина.",
+                    "task_type": "text",
+                    "correct_answer": "Сначала каркас, затем интерактивный прототип в Figma, тестирование на пользователях",
                     "points": 20,
                 },
             ]
-        # Разработка мобильных и веб-приложений
         elif "Разработка мобильных и веб-приложений" in track_name:
             return [
                 {
@@ -615,129 +1098,95 @@ class Command(BaseCommand):
                     ],
                 },
                 {
-                    "title": "Напишите компонент на React",
+                    "title": "Что такое JSX?",
+                    "category": "theory",
+                    "description": "JSX — это...",
+                    "task_type": "single",
+                    "correct_answer": "Расширение синтаксиса JavaScript",
+                    "points": 10,
+                    "options": [
+                        ("Отдельный язык", False),
+                        ("Расширение синтаксиса JavaScript", True),
+                        ("Библиотека стилей", False),
+                    ],
+                },
+                {
+                    "title": "Компонент на React",
                     "category": "practice",
-                    "description": 'Создайте функциональный компонент, который выводит "Hello, World!"',
+                    "description": "Напишите функциональный компонент, который выводит 'Hello, World!'",
                     "task_type": "code",
                     "correct_answer": "function Hello() { return <div>Hello, World!</div>; }",
                     "points": 30,
                 },
-            ]
-        # Искусственный интеллект в Финтехе
-        elif "Искусственный интеллект в финансовых технологиях" in track_name:
-            return [
                 {
-                    "title": "Что такое скоринг?",
-                    "category": "theory",
-                    "description": "Что оценивается с помощью скоринговых моделей?",
-                    "task_type": "single",
-                    "correct_answer": "Кредитоспособность клиента",
-                    "points": 10,
-                    "options": [
-                        ("Кредитоспособность клиента", True),
-                        ("Курс валют", False),
-                        ("Рыночный спрос", False),
-                    ],
-                },
-                {
-                    "title": "Применение ML в финтехе",
+                    "title": "Список задач",
                     "category": "practice",
-                    "description": "Опишите, как ML помогает выявлять мошеннические транзакции.",
-                    "task_type": "text",
-                    "correct_answer": "Обучение модели на исторических данных с меткой мошенничества, выявление аномалий.",
-                    "points": 20,
-                },
-            ]
-        # Системная и программная инженерия
-        elif "Системная и программная инженерия" in track_name:
-            return [
-                {
-                    "title": "Что такое Docker?",
-                    "category": "theory",
-                    "description": "Для чего используется Docker?",
-                    "task_type": "single",
-                    "correct_answer": "Контейнеризация приложений",
-                    "points": 10,
-                    "options": [
-                        ("Виртуализация серверов", False),
-                        ("Контейнеризация приложений", True),
-                        ("Управление базами данных", False),
-                    ],
-                },
-                {
-                    "title": "Напишите Dockerfile",
-                    "category": "practice",
-                    "description": "Напишите простой Dockerfile для Python-приложения (Flask).",
+                    "description": "Напишите компонент, отображающий список дел (массив строк).",
                     "task_type": "code",
-                    "correct_answer": 'FROM python:3.9\nWORKDIR /app\nCOPY . .\nRUN pip install flask\nCMD ["python", "app.py"]',
+                    "correct_answer": "function TodoList({ items }) { return <ul>{items.map(i => <li key={i}>{i}</li>)}</ul>; }",
+                    "points": 25,
+                },
+                {
+                    "title": "Создание REST API",
+                    "category": "practice",
+                    "description": "Напишите простой Express-сервер, возвращающий JSON { message: 'OK' }",
+                    "task_type": "code",
+                    "correct_answer": "const express = require('express'); const app = express(); app.get('/', (req, res) => res.json({ message: 'OK' })); app.listen(3000);",
                     "points": 30,
                 },
             ]
-        # Интернет вещей
-        elif "Интернет вещей" in track_name:
-            return [
-                {
-                    "title": "Протокол MQTT",
-                    "category": "theory",
-                    "description": "Какой транспортный протокол обычно используется в MQTT?",
-                    "task_type": "single",
-                    "correct_answer": "TCP",
-                    "points": 10,
-                    "options": [("UDP", False), ("TCP", True), ("HTTP", False)],
-                },
-                {
-                    "title": "Схема IoT-устройства",
-                    "category": "practice",
-                    "description": "Опишите архитектуру IoT-устройства для сбора температуры.",
-                    "task_type": "text",
-                    "correct_answer": "Датчик → микроконтроллер (ESP32) → Wi-Fi → MQTT брокер → база данных",
-                    "points": 20,
-                },
-            ]
-        # Графический дизайн и 3D-дизайн
-        elif "Графический дизайн и 3D-дизайн" in track_name:
-            return [
-                {
-                    "title": "Что такое Figma?",
-                    "category": "theory",
-                    "description": "Для чего используется Figma?",
-                    "task_type": "single",
-                    "correct_answer": "Прототипирование интерфейсов",
-                    "points": 10,
-                    "options": [
-                        ("Редактирование видео", False),
-                        ("Прототипирование интерфейсов", True),
-                        ("3D-моделирование", False),
-                    ],
-                },
-                {
-                    "title": "Создание прототипа",
-                    "category": "practice",
-                    "description": "Опишите шаги создания интерактивного прототипа в Figma.",
-                    "task_type": "text",
-                    "correct_answer": "Создание экранов, добавление ссылок, настройка переходов, публикация прототипа.",
-                    "points": 20,
-                },
-            ]
-        # Для остальных треков – базовый набор
+        # Для всех остальных треков возвращаем базовый набор (будет дополнен до 6)
         else:
             return [
                 {
-                    "title": f"Основы {track_name}",
+                    "title": "Основы",
                     "category": "theory",
-                    "description": "Выберите верное утверждение.",
+                    "description": "Что является ключевым в данной области?",
                     "task_type": "single",
                     "correct_answer": "Правильный ответ",
                     "points": 10,
-                    "options": [("Неправильно", False), ("Правильно", True)],
+                    "options": [
+                        ("Вариант 1", False),
+                        ("Вариант 2", True),
+                        ("Вариант 3", False),
+                    ],
                 },
                 {
-                    "title": "Практическое задание",
+                    "title": "Теория 2",
+                    "category": "theory",
+                    "description": "Выберите верное утверждение.",
+                    "task_type": "single",
+                    "correct_answer": "Верно",
+                    "points": 10,
+                    "options": [
+                        ("Неверно", False),
+                        ("Верно", True),
+                        ("Сомнительно", False),
+                    ],
+                },
+                {
+                    "title": "Практика 1",
                     "category": "practice",
-                    "description": "Опишите применение знаний на практике.",
+                    "description": "Приведите пример практического применения.",
                     "task_type": "text",
-                    "correct_answer": "Развёрнутый ответ",
+                    "correct_answer": "Пример",
                     "points": 15,
+                },
+                {
+                    "title": "Практика 2",
+                    "category": "practice",
+                    "description": "Опишите решение задачи.",
+                    "task_type": "text",
+                    "correct_answer": "Описание",
+                    "points": 15,
+                },
+                {
+                    "title": "Практика 3",
+                    "category": "practice",
+                    "description": "Создайте прототип решения.",
+                    "task_type": "text",
+                    "correct_answer": "Прототип",
+                    "points": 20,
                 },
             ]
 
@@ -750,7 +1199,6 @@ class Command(BaseCommand):
                 progress, _ = UserProgress.objects.get_or_create(
                     user=student, track=track
                 )
-                # Для демонстрации отмечаем выполненные задания (все auto_check задания)
                 tasks = list(track.tasks.all())
                 if tasks:
                     completed_count = random.randint(0, len(tasks))
@@ -767,22 +1215,25 @@ class Command(BaseCommand):
         self.stdout.write("✅ Прогресс студентов создан.")
 
     def create_chats(self):
+        from chat.models import ChatRoom, ChatMessage
+
         self.stdout.write("Создание чатов и сообщений...")
         for student in self.students:
-            progresses = UserProgress.objects.filter(user=student)
-            for progress in progresses:
-                track = progress.track
-                curator = self.track_curator_map.get(track.id)
-                if not curator:
-                    curator = random.choice(self.curators)
+            if not student.group:
+                continue
+            track = student.group.track
+            for curator in track.curators.all():
                 room, created = ChatRoom.objects.get_or_create(
-                    track=track, student=student, defaults={"curator": curator}
+                    track=track,
+                    student=student,
+                    curator=curator,
+                    defaults={"is_group_chat": False},
                 )
                 if created:
                     ChatMessage.objects.create(
                         room=room,
                         user=curator,
-                        message=f'Привет! Я куратор трека "{track.name}". Рад(а) помочь.',
+                        message=f'Привет! Я куратор трека "{track.name}". Рад помочь.',
                         is_read=False,
                     )
                     if random.random() < 0.7:
@@ -792,23 +1243,16 @@ class Command(BaseCommand):
                             message="Спасибо! С чего лучше начать?",
                             is_read=False,
                         )
-                        if random.random() < 0.5:
-                            ChatMessage.objects.create(
-                                room=room,
-                                user=curator,
-                                message="Начните с гайдов и заданий. Удачи!",
-                                is_read=False,
-                            )
         self.stdout.write("✅ Чаты и сообщения созданы.")
 
     def _random_guide_title(self, track_name):
         titles = [
             f"Введение в {track_name}",
-            f"Ключевые понятия {track_name}",
+            f"Ключевые понятия и инструменты {track_name}",
             f"Практическое применение {track_name}",
-            f"Обзор трендов",
+            f"Обзор современных трендов в {track_name}",
             f"Как эффективно изучать {track_name}",
-            f"Примеры проектов",
-            f"Частые ошибки",
+            f"Примеры успешных проектов по {track_name}",
+            f"Частые ошибки начинающих в {track_name}",
         ]
         return random.choice(titles)

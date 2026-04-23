@@ -1,7 +1,10 @@
 from django.urls import path
 from .views import (
+    CreateEnrollmentRequestView,
+    CuratorStudentsView,
     DirectionListView,
     PendingSubmissionsView,
+    ReviewEnrollmentRequestView,
     ReviewSubmissionView,
     SubmitTaskView,
     TrackListView,
@@ -10,6 +13,7 @@ from .views import (
     ChecklistItemToggleView,
     TrackProgressView,
     TrackTasksView,
+    CuratorEnrollmentRequestsView
 )
 
 urlpatterns = [
@@ -34,4 +38,20 @@ urlpatterns = [
         ReviewSubmissionView.as_view(),
         name="review-submission",
     ),
+    path(
+        "<int:track_id>/enroll/",
+        CreateEnrollmentRequestView.as_view(),
+        name="enroll-request",
+    ),
+    path(
+        "curator/enrollment-requests/",
+        CuratorEnrollmentRequestsView.as_view(),
+        name="curator-requests",
+    ),
+    path(
+        "curator/enrollment-requests/<int:request_id>/review/",
+        ReviewEnrollmentRequestView.as_view(),
+        name="review-request",
+    ),
+    path('curator/students/', CuratorStudentsView.as_view(), name='curator-students'),
 ]

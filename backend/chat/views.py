@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+
+
+from accounts.serializers import UserSerializer
 from .models import ChatRoom, ChatMessage
 from .serializers import (
     ChatRoomSerializer,
@@ -11,6 +14,7 @@ from .serializers import (
 )
 from tracks.models import Track
 from accounts.models import User
+from rest_framework.views import APIView
 
 
 class ChatRoomListView(generics.ListAPIView):
@@ -83,3 +87,14 @@ class ChatMessageMarkReadView(generics.GenericAPIView):
         messages = room.messages.filter(is_read=False).exclude(user=request.user)
         messages.update(is_read=True)
         return Response({"status": "ok"})
+
+class TrackCuratorsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'student' or not request.user.group:
+            return Response([])
+        track = request.user.group.track
+        curators = track.curators.all()
+        serializer = UserSerializer(curators, many=True)
+        return Response(serializer.data)

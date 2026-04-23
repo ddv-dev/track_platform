@@ -9,7 +9,11 @@ class ChatRoom(models.Model):
         "tracks.Track", on_delete=models.CASCADE, related_name="chat_rooms"
     )
     student = models.ForeignKey(
-        "accounts.User", on_delete=models.CASCADE, related_name="chat_rooms"
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="chat_rooms",
+        null=True,
+        blank=True,
     )
     curator = models.ForeignKey(
         "accounts.User",
@@ -18,11 +22,15 @@ class ChatRoom(models.Model):
         null=True,
         blank=True,
     )
+    is_group_chat = models.BooleanField(default=False)
+    participants = models.ManyToManyField(
+        "accounts.User", blank=True, related_name="group_chats"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ["track", "student"]  # ← важно
+        unique_together = ["track", "student", "curator", "is_group_chat"]
         verbose_name = "Чат-комната"
         verbose_name_plural = "Чат-комнаты"
 

@@ -1,4 +1,5 @@
 from datetime import timezone
+from email.headerregistry import Group
 
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -13,6 +14,7 @@ from .models import (
     UserTaskAttempt,
     ChecklistItem,
     PracticalSubmission,
+    EnrollmentRequest,
 )
 from .serializers import (
     DirectionSerializer,
@@ -23,7 +25,9 @@ from .serializers import (
     PracticalSubmissionSerializer,
 )
 from accounts.models import UserProgress
-
+from .serializers import EnrollmentRequestSerializer
+from accounts.models import User
+from chat.models import ChatRoom
 
 from tracks.models import PracticalSubmission
 
@@ -75,30 +79,51 @@ class TrackTasksView(APIView):
 
     def get(self, request, track_id):
         track = get_object_or_404(Track, id=track_id)
-        tasks = track.tasks.all().order_by("order")
-        completed_task_ids = set()
-        for task in tasks:
-            if task.is_auto_check:
-                if UserTaskAttempt.objects.filter(
-                    user=request.user, task=task, is_correct=True
-                ).exists():
-                    completed_task_ids.add(task.id)
-            else:
-                if PracticalSubmission.objects.filter(
-                    user=request.user, task=task, status="approved"
-                ).exists():
-                    completed_task_ids.add(task.id)
-        result = []
-        next_unlocked = True
-        for task in tasks:
-            is_completed = task.id in completed_task_ids
-            is_locked = not next_unlocked
+        tasks = list(track.tasks.all().order_by("order"))
+
+        # Выполненные задания (авто + принятые практики)
+        completed_auto = set(
+            UserTaskAttempt.objects.filter(
+                user=request.user, is_correct=True
+            ).values_list("task_id", flat=True)
+        )
+        completed_practice = set(
+            PracticalSubmission.objects.filter(
+                user=request.user, status="approved"
+            ).values_list("task_id", flat=True)
+        )
+        completed_ids = completed_auto | completed_practice
+
+        # Разделяем по категориям
+        theory_tasks = [t for t in tasks if t.category == "theory"]
+        practice_tasks = [t for t in tasks if t.category == "practice"]
+
+        # Словарь: task.id -> locked
+        locked_map = {}
+
+        # Теория
+        theory_completed_so_far = True  # первое всегда открыто
+        for task in theory_tasks:
+            is_completed = task.id in completed_ids
+            locked_map[task.id] = not theory_completed_so_far
             if not is_completed:
-                next_unlocked = False
+                theory_completed_so_far = False
+
+        # Практика
+        practice_completed_so_far = True
+        for task in practice_tasks:
+            is_completed = task.id in completed_ids
+            locked_map[task.id] = not practice_completed_so_far
+            if not is_completed:
+                practice_completed_so_far = False
+
+        # Формируем ответ
+        result = []
+        for task in tasks:
             serializer = TaskSerializer(task, context={"request": request})
             task_data = serializer.data
-            task_data["completed"] = is_completed
-            task_data["locked"] = is_locked
+            task_data["completed"] = task.id in completed_ids
+            task_data["locked"] = locked_map.get(task.id, False)
             result.append(task_data)
         return Response(result)
 
@@ -310,3 +335,130 @@ class TrackProgressView(generics.GenericAPIView):
                 ),
             }
         )
+
+
+class CreateEnrollmentRequestView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, track_id):
+        track = get_object_or_404(Track, id=track_id)
+        if request.user.role != "student":
+            return Response(
+                {"error": "Только студенты могут подавать заявки"}, status=400
+            )
+        if EnrollmentRequest.objects.filter(
+            student=request.user, track=track, status="pending"
+        ).exists():
+            return Response({"error": "У вас уже есть активная заявка"}, status=400)
+        if request.user.group and request.user.group.track == track:
+            return Response({"error": "Вы уже зачислены на этот трек"}, status=400)
+
+        enrollment = EnrollmentRequest.objects.create(student=request.user, track=track)
+        return Response(
+            EnrollmentRequestSerializer(enrollment).data, status=status.HTTP_201_CREATED
+        )
+
+
+class CuratorEnrollmentRequestsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "curator":
+            return Response({"error": "Доступ только для кураторов"}, status=403)
+        # Заявки на треки, где этот куратор состоит
+        requests = EnrollmentRequest.objects.filter(
+            track__curators=request.user, status="pending"
+        )
+        serializer = EnrollmentRequestSerializer(requests, many=True)
+        return Response(serializer.data)
+
+
+class ReviewEnrollmentRequestView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, request_id):
+        if request.user.role != "curator":
+            return Response({"error": "Доступ только для кураторов"}, status=403)
+        enrollment = get_object_or_404(EnrollmentRequest, id=request_id)
+        if request.user not in enrollment.track.curators.all():
+            return Response({"error": "Вы не куратор этого трека"}, status=403)
+
+        action = request.data.get("action")
+        if action not in ["accept", "reject"]:
+            return Response(
+                {"error": "Действие должно быть accept или reject"}, status=400
+            )
+
+        if action == "accept":
+            enrollment.status = "accepted"
+            # Получаем или создаём группу для трека
+            group, _ = Group.objects.get_or_create(
+                track=enrollment.track,
+                defaults={"name": f"Группа {enrollment.track.name}"},
+            )
+            # Зачисляем студента в группу
+            student = enrollment.student
+            student.group = group
+            student.save()
+            # Создаём личные чаты со всеми кураторами трека (если нет)
+            for curator in enrollment.track.curators.all():
+                chat_room, _ = ChatRoom.objects.get_or_create(
+                    track=enrollment.track,
+                    student=student,
+                    curator=curator,
+                    defaults={"is_group_chat": False},
+                )
+            # Добавляем студента в групповой чат трека (если существует)
+            group_chat, _ = ChatRoom.objects.get_or_create(
+                track=enrollment.track,
+                is_group_chat=True,
+                defaults={"is_group_chat": True},
+            )
+            group_chat.participants.add(student)
+        else:
+            enrollment.status = "rejected"
+
+        enrollment.reviewed_by = request.user
+        enrollment.save()
+        return Response({"status": enrollment.status})
+
+
+class CuratorStudentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "curator":
+            return Response({"error": "Доступ только для кураторов"}, status=403)
+        # Получаем все треки, где куратор состоит
+        tracks = request.user.tracks_as_curator.all()
+        students_data = []
+        for track in tracks:
+            group = Group.objects.filter(track=track).first()
+            if group:
+                students = group.students.all()
+                for student in students:
+                    progress = UserProgress.objects.filter(
+                        user=student, track=track
+                    ).first()
+                    students_data.append(
+                        {
+                            "student_id": student.id,
+                            "name": student.get_full_name(),
+                            "track": track.name,
+                            "total_tasks": progress.total_tasks if progress else 0,
+                            "completed_tasks": (
+                                progress.completed_tasks.count() if progress else 0
+                            ),
+                            "percentage": (
+                                round(
+                                    progress.completed_tasks.count()
+                                    / progress.total_tasks
+                                    * 100,
+                                    1,
+                                )
+                                if progress and progress.total_tasks
+                                else 0
+                            ),
+                        }
+                    )
+        return Response(students_data)
