@@ -6,10 +6,10 @@ import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ChatIcon from '@mui/icons-material/Chat';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import { useAuth } from '../hooks/useAuth'; // Импортируем хук
+import { useAuth } from '../hooks/useAuth';
 
 export const HomePage = () => {
-  const { isAuthenticated } = useAuth(); // Получаем статус авторизации
+  const { isAuthenticated } = useAuth();
 
   const features = [
     { icon: <SchoolIcon sx={{ fontSize: 48 }} />, title: '25+ треков', desc: 'Разнообразные направления от программирования до аналитики' },

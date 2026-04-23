@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Typography, Tabs, Tab, Box, Chip, CircularProgress, Alert, LinearProgress } from '@mui/material';
 import { trackService } from '../services/track.service';
-import { TaskCard } from '../components/tracks/TaskCard';
+import { taskService } from '../services/task.service';
+import { TasksSidebar } from '../components/tracks/TasksSidebar';
+import { TaskViewer } from '../components/tracks/TaskViewer';
 import { useAuth } from '../hooks/useAuth';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -12,20 +14,45 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 export const TrackDetailPage = () => {
   const { id } = useParams();
   const [track, setTrack] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
+  const [selectedTask, setSelectedTask] = useState(null);
   const { user } = useAuth();
 
-  useEffect(() => { loadData(); }, [id]);
+  useEffect(() => {
+    loadData();
+  }, [id]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [trackData, progressData] = await Promise.all([trackService.getTrack(id), trackService.getTrackProgress(id)]);
+      const [trackData, tasksData, progressData] = await Promise.all([
+        trackService.getTrack(id),
+        taskService.getTrackTasks(id),
+        trackService.getTrackProgress(id),
+      ]);
       setTrack(trackData);
+      setTasks(tasksData);
       setProgress(progressData);
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+      // Автоматически выбираем первое незаблокированное задание (если есть)
+      if (tasksData.length > 0) {
+        const firstUnlocked = tasksData.find(t => !t.locked) || tasksData[0];
+        setSelectedTask(firstUnlocked);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTaskUpdate = (updatedTask) => {
+    // Обновляем задание в списке (например, после успешной отправки)
+    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    // Также можно обновить прогресс трека
+    trackService.getTrackProgress(id).then(setProgress);
   };
 
   if (loading) return <div className="flex justify-center items-center h-screen"><CircularProgress sx={{ color: '#0541F0' }} /></div>;
@@ -57,12 +84,33 @@ export const TrackDetailPage = () => {
           <Tab label="Карьера" icon={<WorkIcon />} iconPosition="start" />
           <Tab label="Навыки" icon={<EmojiEventsIcon />} iconPosition="start" />
         </Tabs>
+
+        {/* Вкладка "О треке" */}
         <div hidden={tabValue !== 0} className="mt-8"><div className="bg-white rounded-2xl shadow-md p-8"><Typography variant="body1" className="text-darkGray">{track.full_description}</Typography></div></div>
+
+        {/* Вкладка "Гайды" */}
         <div hidden={tabValue !== 1} className="mt-8 space-y-4">{track.guides?.map((guide, idx) => (
           <div key={guide.id} className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="bg-cyan/10 px-6 py-4"><Typography variant="h5" fontWeight="600" className="text-darkBlue">{idx+1}. {guide.title}</Typography></div><div className="p-6"><div className="prose max-w-none text-darkGray">{guide.content}</div></div></div>
         ))}</div>
-        <div hidden={tabValue !== 2} className="mt-8">{track.tasks?.map((task) => <TaskCard key={task.id} task={task} trackId={track.id} onSuccess={loadData} />)}</div>
+
+        {/* Вкладка "Задания" */}
+        <div hidden={tabValue !== 2} className="mt-8">
+          <div className="flex gap-6">
+            <TasksSidebar tasks={tasks} selectedTaskId={selectedTask?.id} onSelectTask={setSelectedTask} />
+            <div className="flex-1">
+              {selectedTask ? (
+                <TaskViewer task={selectedTask} trackId={track.id} onTaskUpdate={handleTaskUpdate} />
+              ) : (
+                <Paper className="p-8 text-center"><Typography color="textSecondary">Выберите задание из списка</Typography></Paper>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Вкладка "Карьера" */}
         <div hidden={tabValue !== 3} className="mt-8"><div className="bg-gradient-to-br from-darkBlue/5 to-blue/5 rounded-2xl p-8"><Typography variant="h5" fontWeight="600" className="text-darkBlue mb-4">🚀 Карьерные перспективы</Typography><Typography className="text-darkGray">{track.career_paths}</Typography></div></div>
+
+        {/* Вкладка "Навыки" */}
         <div hidden={tabValue !== 4} className="mt-8"><div className="bg-gradient-to-br from-cyan/5 to-blue/5 rounded-2xl p-8"><Typography variant="h5" fontWeight="600" className="text-darkBlue mb-4">💡 Навыки, которые вы получите</Typography><Typography className="text-darkGray">{track.skills}</Typography></div></div>
       </Container>
     </div>
