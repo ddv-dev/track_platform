@@ -1,11 +1,12 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
-
 from accounts.serializers import UserSerializer
+from accounts.models import User
 from .models import ChatRoom, ChatMessage
 from .serializers import (
     ChatRoomSerializer,
@@ -13,8 +14,6 @@ from .serializers import (
     ChatMessageSerializer,
 )
 from tracks.models import Track
-from accounts.models import User
-from rest_framework.views import APIView
 
 
 class ChatRoomListView(generics.ListAPIView):

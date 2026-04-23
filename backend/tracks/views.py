@@ -1,5 +1,4 @@
-from datetime import timezone
-from email.headerregistry import Group
+from django.utils import timezone
 
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -15,6 +14,7 @@ from .models import (
     ChecklistItem,
     PracticalSubmission,
     EnrollmentRequest,
+    Group,
 )
 from .serializers import (
     DirectionSerializer,
@@ -23,13 +23,10 @@ from .serializers import (
     TaskSerializer,
     TaskSubmitSerializer,
     PracticalSubmissionSerializer,
+    EnrollmentRequestSerializer,
 )
-from accounts.models import UserProgress
-from .serializers import EnrollmentRequestSerializer
-from accounts.models import User
+from accounts.models import UserProgress, User
 from chat.models import ChatRoom
-
-from tracks.models import PracticalSubmission
 
 
 class PendingSubmissionsView(APIView):
@@ -439,23 +436,23 @@ class CuratorStudentsView(APIView):
                     progress = UserProgress.objects.filter(
                         user=student, track=track
                     ).first()
+                    total_tasks = track.tasks.count()
+                    completed_tasks = (
+                        progress.completed_tasks.count() if progress else 0
+                    )
                     students_data.append(
                         {
                             "student_id": student.id,
                             "name": student.get_full_name(),
                             "track": track.name,
-                            "total_tasks": progress.total_tasks if progress else 0,
-                            "completed_tasks": (
-                                progress.completed_tasks.count() if progress else 0
-                            ),
+                            "total_tasks": total_tasks,
+                            "completed_tasks": completed_tasks,
                             "percentage": (
                                 round(
-                                    progress.completed_tasks.count()
-                                    / progress.total_tasks
-                                    * 100,
+                                    completed_tasks / total_tasks * 100,
                                     1,
                                 )
-                                if progress and progress.total_tasks
+                                if total_tasks
                                 else 0
                             ),
                         }

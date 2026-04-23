@@ -1,8 +1,5 @@
 from django.db import models
-
 from django.contrib.auth.models import AbstractUser
-from django.db import models
-from tracks.models import Track
 
 
 class User(AbstractUser):
