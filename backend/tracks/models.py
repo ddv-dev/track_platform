@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from backend.accounts.models import User
+
 
 class Direction(models.Model):
     code = models.CharField(max_length=20, unique=True, verbose_name="Код направления")
@@ -34,11 +36,16 @@ class Track(models.Model):
         upload_to="tracks/", null=True, blank=True, verbose_name="Изображение"
     )
     curators = models.ManyToManyField(
-        "accounts.User",
+        User,
         limit_choices_to={"role": "curator"},
-        blank=True,
         related_name="tracks_as_curator",
-        verbose_name="Кураторы трека",
+        blank=True,
+    )
+    teachers = models.ManyToManyField(
+        User,
+        limit_choices_to={"role": "teacher"},
+        related_name="tracks_as_teacher",
+        blank=True,
     )
 
     class Meta:

@@ -466,7 +466,12 @@ class CuratorStudentsStatsView(APIView):
     def get(self, request):
         if request.user.role != "curator":
             return Response({"error": "Доступ только для кураторов"}, status=403)
-        tracks = request.user.tracks_as_curator.all()
+
+        if request.user.role == "curator":
+            tracks = request.user.tracks_as_curator.all()
+        else:  # teacher
+            tracks = request.user.tracks_as_teacher.all()
+
         result = []
         for track in tracks:
             group = Group.objects.filter(track=track).first()
@@ -493,3 +498,21 @@ class CuratorStudentsStatsView(APIView):
                     }
                 )
         return Response(result)
+    
+class TrackTaskUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, track_id, task_id):
+        track = get_object_or_404(Track, id=track_id)
+        if request.user.role not in ('curator', 'teacher'):
+            return Response({'error': 'Недостаточно прав'}, status=403)
+        # Проверяем, что пользователь привязан к треку
+        if request.user not in track.curators.all() and request.user not in track.teachers.all():
+            return Response({'error': 'Вы не привязаны к этому треку'}, status=403)
+
+        task = get_object_or_404(Task, id=task_id, track=track)
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)

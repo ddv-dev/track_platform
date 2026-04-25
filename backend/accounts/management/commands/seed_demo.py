@@ -703,6 +703,21 @@ class Command(BaseCommand):
         self.stdout.write(f"✅ Создано 5 направлений и {len(self.tracks)} треков.")
 
     def create_users(self):
+        teachers = []
+        teacher_names = ['Пётр', 'Ольга', 'Иван', 'Светлана', 'Алексей']
+        for i, name in enumerate(teacher_names, 1):
+            teacher = User.objects.create_user(
+                username=f'teacher_{name.lower()}',
+                email=f'teacher_{i}@example.com',
+                password='teacher123',
+                first_name=name,
+                last_name='Преподаватель',
+                role='teacher'
+            )
+            teachers.append(teacher)
+
+
+
         self.stdout.write("Создание пользователей...")
         if not User.objects.filter(username="admin").exists():
             User.objects.create_superuser(

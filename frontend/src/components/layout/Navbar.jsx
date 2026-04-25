@@ -32,6 +32,12 @@ export const Navbar = () => {
                     <Link to="/curator/reviews" className="text-white hover:text-cyan transition">Проверка</Link>
                   </>
                 )}
+                {user?.role === 'teacher' && (
+                  <>
+                    <Link to="/teacher/tasks" className="text-white hover:text-cyan transition">Редактор заданий</Link>
+                    <Link to="/teacher/stats" className="text-white hover:text-cyan transition">Результаты студентов</Link>
+                  </>
+                )}
                 <Avatar
                   src={user?.avatar || undefined}
                   onClick={(e) => setAnchorEl(e.currentTarget)}

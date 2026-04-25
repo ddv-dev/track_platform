@@ -22,6 +22,7 @@ class DirectionAdmin(admin.ModelAdmin):
 @admin.register(Track)
 class TrackAdmin(admin.ModelAdmin):
     list_display = ("name", "direction", "is_active", "order", "duration")
+    filter_horizontal = ('curators', 'teachers')
     list_filter = ("direction", "is_active")
     search_fields = ("name", "short_description")
     list_editable = ("order", "is_active")
