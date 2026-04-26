@@ -115,8 +115,15 @@ class ChatRoomDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == "curator":
-            return ChatRoom.objects.filter(curator=user)
-        return ChatRoom.objects.filter(student=user)
+            return ChatRoom.objects.filter(curator=user, is_active=True)
+        elif user.role == "student":
+            return ChatRoom.objects.filter(student=user, is_active=True)
+        elif user.role == "teacher":
+            return ChatRoom.objects.filter(
+                is_group_chat=True, track__teachers=user, is_active=True
+            )
+        else:
+            return ChatRoom.objects.none()
 
 
 class ChatMessageCreateView(generics.CreateAPIView):

@@ -1,29 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
+import { useEffect, useState, useRef } from 'react';
 
 export const useWebSocket = (roomId) => {
-  const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
-  const socketRef = useRef(null);
+  const wsRef = useRef(null);
 
   useEffect(() => {
     if (!roomId) return;
     const token = localStorage.getItem('access_token');
-    const newSocket = io(import.meta.env.VITE_WS_URL, {
-      path: `/ws/chat/${roomId}/`,
-      query: { token },
-      transports: ['websocket'],
-    });
-    newSocket.on('connect', () => console.log('WebSocket connected'));
-    newSocket.on('chat_message', (data) => setMessages((prev) => [...prev, data]));
-    socketRef.current = newSocket;
-    setSocket(newSocket);
-    return () => newSocket.close();
+    const ws = new WebSocket(`ws://localhost:8000/ws/chat/${roomId}/?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => console.log('WebSocket connected');
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      setMessages(prev => [...prev, data]);
+    };
+    ws.onerror = (err) => console.error('WebSocket error', err);
+    ws.onclose = () => console.log('WebSocket closed');
+
+    return () => ws.close();
   }, [roomId]);
 
   const sendMessage = (message) => {
-    if (socketRef.current) socketRef.current.emit('chat_message', { message });
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ message }));
+    }
   };
 
-  return { socket, messages, sendMessage, setMessages };
+  return { sendMessage, messages, setMessages };
 };

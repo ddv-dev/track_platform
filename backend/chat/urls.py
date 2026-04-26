@@ -26,5 +26,8 @@ urlpatterns = [
     ),
     path("curators/", TrackCuratorsView.as_view(), name="track-curators"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
-    path('private/create/', CreatePrivateChatView.as_view(), name='create-private-chat'),
+    path(
+        "private/create/", CreatePrivateChatView.as_view(), name="create-private-chat"
+    ),
+    path("rooms/<int:pk>/", ChatRoomDetailView.as_view(), name="chat-room-detail"),
 ]

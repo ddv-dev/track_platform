@@ -124,7 +124,7 @@ export const TrackDetailPage = () => {
               <Chip label="Заявка на рассмотрении" sx={{ bgcolor: '#ff9800', color: 'white' }} />
             )}
             {isEnrolled && (
-              <Chip label="Зачислен" sx={{ bgcolor: '#4caf50', color: 'white' }} />
+              <Chip label="Вы уже находитесь в треке" sx={{ bgcolor: '#4caf50', color: 'white' }} />
             )}
           </div>
           {progress && user && (
