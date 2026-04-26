@@ -1,5 +1,7 @@
 from django.shortcuts import render
 
+from tracks.serializers import EnrollmentRequestSerializer
+from tracks.models import EnrollmentRequest
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -7,7 +9,14 @@ from django.contrib.auth import authenticate
 from .models import User, UserProgress
 from .serializers import UserSerializer, RegisterSerializer, UserProgressSerializer
 
+class StudentEnrollmentRequestsView(generics.ListAPIView):
+    serializer_class = EnrollmentRequestSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = None
 
+    def get_queryset(self):
+        return EnrollmentRequest.objects.filter(student=self.request.user)
+    
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)

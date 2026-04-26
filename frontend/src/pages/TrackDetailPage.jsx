@@ -53,10 +53,11 @@ export const TrackDetailPage = () => {
 
   const checkEnrollmentStatus = async () => {
     if (!isAuthenticated || user?.role !== 'student') return;
-    // Если уже зачислен – не проверяем заявки
     if (user.group && user.group.track?.id === parseInt(id)) return;
     try {
-      const requests = await trackService.getStudentRequests();
+      const response = await trackService.getStudentRequests();
+      // Если response – массив, используем его. Если объект с results, берём results.
+      let requests = Array.isArray(response) ? response : (response?.results || []);
       const hasPending = requests.some(r => r.track === parseInt(id) && r.status === 'pending');
       setHasPendingRequest(hasPending);
     } catch (err) {
@@ -143,7 +144,7 @@ export const TrackDetailPage = () => {
 
         <div hidden={tabValue !== 0} className="mt-8"><div className="bg-white rounded-2xl shadow-md p-8"><Typography variant="body1" className="text-darkGray">{track.full_description}</Typography></div></div>
         <div hidden={tabValue !== 1} className="mt-8 space-y-4">{track.guides?.map((guide, idx) => (
-          <div key={guide.id} className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="bg-cyan/10 px-6 py-4"><Typography variant="h5" fontWeight="600" className="text-darkBlue">{idx+1}. {guide.title}</Typography></div><div className="p-6"><div className="prose max-w-none text-darkGray">{guide.content}</div></div></div>
+          <div key={guide.id} className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="bg-cyan/10 px-6 py-4"><Typography variant="h5" fontWeight="600" className="text-darkBlue">{idx + 1}. {guide.title}</Typography></div><div className="p-6"><div className="prose max-w-none text-darkGray">{guide.content}</div></div></div>
         ))}</div>
 
         <div hidden={tabValue !== 2} className="mt-8">
