@@ -1,3 +1,4 @@
+// frontend/src/hooks/useWebSocket.js
 import { useEffect, useState, useRef } from 'react';
 
 export const useWebSocket = (roomId) => {
@@ -16,7 +17,6 @@ export const useWebSocket = (roomId) => {
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log('Message received:', data);
       setMessages(prev => [...prev, data]);
     };
 

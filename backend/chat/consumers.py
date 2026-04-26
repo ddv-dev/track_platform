@@ -5,6 +5,7 @@ from channels.db import database_sync_to_async
 
 logger = logging.getLogger(__name__)
 
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
@@ -39,6 +40,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         logger.debug(f"Received message: {text_data}")
+        first_name = user.first_name or user.username
+
         try:
             data = json.loads(text_data)
             message = data.get("message")
@@ -58,6 +61,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "message": message,
                     "user": user.username,
                     "user_id": user.id,
+                    "first_name": first_name,
                     "created_at": saved_message["created_at"],
                 },
             )
@@ -65,22 +69,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.exception(f"Error processing message: {e}")
 
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
-            "message": event["message"],
-            "user": event["user"],
-            "user_id": event["user_id"],
-            "created_at": event["created_at"],
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "message": event["message"],
+                    "user": event["user"],
+                    "first_name": event.get("first_name", event["user"]),
+                    "user_id": event["user_id"],
+                    "created_at": event["created_at"],
+                }
+            )
+        )
 
     @database_sync_to_async
     def room_exists(self, room_id):
         from .models import ChatRoom
+
         return ChatRoom.objects.filter(id=room_id).exists()
 
     @database_sync_to_async
     def save_message(self, room_id, user_id, message):
         from django.contrib.auth import get_user_model
         from .models import ChatRoom, ChatMessage
+
         User = get_user_model()
         try:
             room = ChatRoom.objects.get(id=room_id)
