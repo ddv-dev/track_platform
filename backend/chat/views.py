@@ -17,11 +17,14 @@ from tracks.models import Track
 
 
 class ChatRoomListView(generics.ListAPIView):
+    serializer_class = ChatRoomSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'curator':
+        if user.role == "curator":
             return ChatRoom.objects.filter(curator=user, is_active=True)
-        elif user.role == 'student':
+        elif user.role == "student":
             return ChatRoom.objects.filter(student=user, is_active=True)
         else:
             # Преподаватели и админы не видят чаты
@@ -88,11 +91,12 @@ class ChatMessageMarkReadView(generics.GenericAPIView):
         messages.update(is_read=True)
         return Response({"status": "ok"})
 
+
 class TrackCuratorsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'student' or not request.user.group:
+        if request.user.role != "student" or not request.user.group:
             return Response([])
         track = request.user.group.track
         curators = track.curators.all()

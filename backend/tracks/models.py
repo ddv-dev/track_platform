@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-from backend.accounts.models import User
+from accounts.models import User
 
 
 class Direction(models.Model):

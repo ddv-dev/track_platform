@@ -498,16 +498,16 @@ class CuratorStudentsStatsView(APIView):
                     }
                 )
         return Response(result)
-    
+
+
 class TrackTaskUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def put(self, request, track_id, task_id):
         track = get_object_or_404(Track, id=track_id)
-        if request.user.role not in ('curator', 'teacher'):
+        if request.user.role not in ('teacher', 'curator'):
             return Response({'error': 'Недостаточно прав'}, status=403)
-        # Проверяем, что пользователь привязан к треку
-        if request.user not in track.curators.all() and request.user not in track.teachers.all():
+        if request.user not in track.teachers.all() and request.user not in track.curators.all():
             return Response({'error': 'Вы не привязаны к этому треку'}, status=403)
 
         task = get_object_or_404(Task, id=task_id, track=track)
@@ -515,4 +515,66 @@ class TrackTaskUpdateView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+class TeacherTracksView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "teacher":
+            return Response({"error": "Доступ только преподавателям"}, status=403)
+        tracks = request.user.tracks_as_teacher.all()
+        serializer = TrackListSerializer(tracks, many=True)
+        return Response(serializer.data)
+
+
+class TeacherStudentsStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != "teacher":
+            return Response({"error": "Доступ только преподавателям"}, status=403)
+        tracks = request.user.tracks_as_teacher.all()
+        result = []
+        for track in tracks:
+            group = Group.objects.filter(track=track).first()
+            if not group:
+                continue
+            for student in group.students.all():
+                progress = UserProgress.objects.filter(
+                    user=student, track=track
+                ).first()
+                total = track.tasks.count()
+                completed = progress.completed_tasks.count() if progress else 0
+                result.append(
+                    {
+                        "student_id": student.id,
+                        "name": student.get_full_name(),
+                        "track": track.name,
+                        "total_tasks": total,
+                        "completed_tasks": completed,
+                        "percentage": round(completed / total * 100, 1) if total else 0,
+                    }
+                )
+        return Response(result)
+
+
+class TrackTaskCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, track_id):
+        track = get_object_or_404(Track, id=track_id)
+        # проверка прав: учитель или куратор, связанный с треком
+        if request.user.role not in ("teacher", "curator"):
+            return Response({"error": "Недостаточно прав"}, status=403)
+        if (
+            request.user not in track.teachers.all()
+            and request.user not in track.curators.all()
+        ):
+            return Response({"error": "Вы не привязаны к этому треку"}, status=403)
+
+        serializer = TaskSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(track=track)
+            return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)

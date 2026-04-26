@@ -38,6 +38,7 @@ class TrackListSerializer(serializers.ModelSerializer):
             "duration",
             "image",
             "order",
+            "teachers",
         )
 
 
@@ -109,6 +110,8 @@ class TrackDetailSerializer(serializers.ModelSerializer):
     guides = GuideSerializer(many=True, read_only=True)
     checklists = ChecklistSerializer(many=True, read_only=True)
     tasks = TaskSerializer(many=True, read_only=True)
+    teachers = serializers.SlugRelatedField(many=True, slug_field="id", read_only=True)
+    curators = serializers.SlugRelatedField(many=True, slug_field="id", read_only=True)
 
     class Meta:
         model = Track
@@ -125,6 +128,8 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "guides",
             "checklists",
             "tasks",
+            "teachers",
+            "curators",
         )
 
 

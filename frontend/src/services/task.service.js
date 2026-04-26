@@ -9,14 +9,12 @@ export const taskService = {
     const response = await api.post(`/tracks/tasks/${taskId}/submit/`, { answer });
     return response.data;
   },
-
-  async updateTask(trackId, taskId, taskData) {
-    const response = await api.put(`/tracks/${trackId}/tasks/${taskId}/`, taskData);
+  async createTask(trackId, taskData) {
+    const response = await api.post(`/tracks/${trackId}/tasks/create/`, taskData);
     return response.data;
   },
-
-  async createTask(trackId, taskData) {
-    const response = await api.post(`/tracks/${trackId}/tasks/`, taskData);
+  async updateTask(trackId, taskId, taskData) {
+    const response = await api.put(`/tracks/${trackId}/tasks/${taskId}/update/`, taskData);
     return response.data;
-  }
+  },
 };
