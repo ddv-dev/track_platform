@@ -37,8 +37,9 @@ class PendingSubmissionsView(APIView):
             return Response({"error": "Доступ только кураторам"}, status=403)
         # Используем ManyToMany связь curators
         submissions = PracticalSubmission.objects.filter(
-            status="pending", task__track__curators=request.user
-        ).select_related("task", "user")
+            status="pending", task__track__curator=request.user
+        )
+
         serializer = PracticalSubmissionSerializer(submissions, many=True)
         return Response(serializer.data)
 
@@ -363,8 +364,9 @@ class CuratorEnrollmentRequestsView(APIView):
             return Response({"error": "Доступ только для кураторов"}, status=403)
         # Заявки на треки, где этот куратор состоит
         requests = EnrollmentRequest.objects.filter(
-            track__curators=request.user, status="pending"
+            track__curator=request.user, status="pending"
         )
+
         serializer = EnrollmentRequestSerializer(requests, many=True)
         return Response(serializer.data)
 
@@ -373,45 +375,65 @@ class ReviewEnrollmentRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, request_id):
+        # Только куратор может обрабатывать заявки
         if request.user.role != "curator":
-            return Response({"error": "Доступ только для кураторов"}, status=403)
+            return Response(
+                {"error": "Доступ только кураторам"}, status=status.HTTP_403_FORBIDDEN
+            )
+
         enrollment = get_object_or_404(EnrollmentRequest, id=request_id)
-        if request.user not in enrollment.track.curators.all():
-            return Response({"error": "Вы не куратор этого трека"}, status=403)
+        track = enrollment.track
+
+        # Проверка: текущий пользователь – куратор этого трека
+        # Если поле curator в Track – ForeignKey (рекомендуется)
+        if track.curator != request.user:
+            return Response(
+                {"error": "Вы не куратор этого трека"}, status=status.HTTP_403_FORBIDDEN
+            )
 
         action = request.data.get("action")
-        if action not in ["accept", "reject"]:
+        if action not in ("accept", "reject"):
             return Response(
-                {"error": "Действие должно быть accept или reject"}, status=400
+                {"error": "Действие должно быть accept или reject"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if action == "accept":
             enrollment.status = "accepted"
-            # Получаем или создаём группу для трека
+
+            # 1. Создаём или получаем группу для трека
             group, _ = Group.objects.get_or_create(
-                track=enrollment.track,
-                defaults={"name": f"Группа {enrollment.track.name}"},
+                track=track,
+                defaults={"name": f"Группа {track.name}", "curator": request.user},
             )
-            # Зачисляем студента в группу
+
+            # 2. Зачисляем студента в группу
             student = enrollment.student
             student.group = group
             student.save()
-            # Создаём личные чаты со всеми кураторами трека (если нет)
-            for curator in enrollment.track.curators.all():
-                chat_room, _ = ChatRoom.objects.get_or_create(
-                    track=enrollment.track,
-                    student=student,
-                    curator=curator,
-                    defaults={"is_group_chat": False},
-                )
-            # Добавляем студента в групповой чат трека (если существует)
-            group_chat, _ = ChatRoom.objects.get_or_create(
-                track=enrollment.track,
-                is_group_chat=True,
-                defaults={"is_group_chat": True},
+
+            # 3. Создаём или получаем групповой чат трека
+            group_chat, created = ChatRoom.objects.get_or_create(
+                track=track, is_group_chat=True, defaults={"title": track.name}
             )
+
+            # 4. Добавляем студента и куратора в участники
             group_chat.participants.add(student)
-        else:
+            if request.user not in group_chat.participants.all():
+                group_chat.participants.add(request.user)
+
+            # 5. Приветственное сообщение (только при создании чата)
+            if created:
+                ChatMessage.objects.create(
+                    room=group_chat,
+                    user=request.user,
+                    message=f'Добро пожаловать в групповой чат трека "{track.name}"! Здесь можно обсуждать учебные вопросы.',
+                )
+
+            # 6. Создаём прогресс студента по треку
+            UserProgress.objects.get_or_create(user=student, track=track)
+
+        else:  # reject
             enrollment.status = "rejected"
 
         enrollment.reviewed_by = request.user
@@ -505,10 +527,13 @@ class TrackTaskUpdateView(APIView):
 
     def put(self, request, track_id, task_id):
         track = get_object_or_404(Track, id=track_id)
-        if request.user.role not in ('teacher', 'curator'):
-            return Response({'error': 'Недостаточно прав'}, status=403)
-        if request.user not in track.teachers.all() and request.user not in track.curators.all():
-            return Response({'error': 'Вы не привязаны к этому треку'}, status=403)
+        if request.user.role not in ("teacher", "curator"):
+            return Response({"error": "Недостаточно прав"}, status=403)
+        if (
+            request.user not in track.teachers.all()
+            and request.user not in track.curator
+        ):
+            return Response({"error": "Вы не привязаны к этому треку"}, status=403)
 
         task = get_object_or_404(Task, id=task_id, track=track)
         serializer = TaskSerializer(task, data=request.data, partial=True)
@@ -516,6 +541,7 @@ class TrackTaskUpdateView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
 
 class TeacherTracksView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -569,7 +595,7 @@ class TrackTaskCreateView(APIView):
             return Response({"error": "Недостаточно прав"}, status=403)
         if (
             request.user not in track.teachers.all()
-            and request.user not in track.curators.all()
+            and request.user not in track.curator
         ):
             return Response({"error": "Вы не привязаны к этому треку"}, status=403)
 

@@ -35,11 +35,13 @@ class Track(models.Model):
     image = models.ImageField(
         upload_to="tracks/", null=True, blank=True, verbose_name="Изображение"
     )
-    curators = models.ManyToManyField(
+    curator = models.ForeignKey(
         User,
-        limit_choices_to={"role": "curator"},
-        related_name="tracks_as_curator",
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
+        limit_choices_to={'role': 'curator'},
+        related_name='tracks_as_curator'
     )
     teachers = models.ManyToManyField(
         User,

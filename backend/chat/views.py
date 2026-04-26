@@ -102,3 +102,28 @@ class TrackCuratorsView(APIView):
         curators = track.curators.all()
         serializer = UserSerializer(curators, many=True)
         return Response(serializer.data)
+
+
+class UserSearchView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        role = request.query_params.get("role")
+        query = request.query_params.get("q", "")
+        track_id = request.query_params.get("track")
+
+        users = User.objects.all()
+        if role:
+            users = users.filter(role=role)
+        if query:
+            users = users.filter(
+                Q(username__icontains=query)
+                | Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+            )
+        if track_id:
+            # Фильтр по треку (например, для преподавателей, привязанных к треку студента)
+            users = users.filter(tracks_as_teacher__id=track_id)
+
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)

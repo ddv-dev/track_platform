@@ -1,13 +1,13 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 
+from tracks.models import Track
+
 User = get_user_model()
 
 
 class ChatRoom(models.Model):
-    track = models.ForeignKey(
-        "tracks.Track", on_delete=models.CASCADE, related_name="chat_rooms"
-    )
+    track = models.ForeignKey(Track, on_delete=models.CASCADE, null=True, blank=True)
     student = models.ForeignKey(
         "accounts.User",
         on_delete=models.CASCADE,
@@ -23,9 +23,7 @@ class ChatRoom(models.Model):
         blank=True,
     )
     is_group_chat = models.BooleanField(default=False)
-    participants = models.ManyToManyField(
-        "accounts.User", blank=True, related_name="group_chats"
-    )
+    participants = models.ManyToManyField(User, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 

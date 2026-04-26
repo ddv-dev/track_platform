@@ -110,8 +110,7 @@ class TrackDetailSerializer(serializers.ModelSerializer):
     guides = GuideSerializer(many=True, read_only=True)
     checklists = ChecklistSerializer(many=True, read_only=True)
     tasks = TaskSerializer(many=True, read_only=True)
-    teachers = serializers.SlugRelatedField(many=True, slug_field="id", read_only=True)
-    curators = serializers.SlugRelatedField(many=True, slug_field="id", read_only=True)
+    show_tasks = serializers.SerializerMethodField()
 
     class Meta:
         model = Track
@@ -128,9 +127,14 @@ class TrackDetailSerializer(serializers.ModelSerializer):
             "guides",
             "checklists",
             "tasks",
-            "teachers",
-            "curators",
+            "show_tasks",
         )
+
+    def get_show_tasks(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        return request.user.role == "student"
 
 
 class EnrollmentRequestSerializer(serializers.ModelSerializer):

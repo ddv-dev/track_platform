@@ -137,7 +137,9 @@ export const TrackDetailPage = () => {
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ borderBottom: '2px solid #E0E4E8', '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 }, '& .MuiTabs-indicator': { bgcolor: '#37EBFF', height: 3 } }}>
           <Tab label="О треке" icon={<MenuBookIcon />} iconPosition="start" />
           <Tab label="Гайды" icon={<MenuBookIcon />} iconPosition="start" />
-          <Tab label="Задания" icon={<AssignmentIcon />} iconPosition="start" />
+          {track.show_tasks && (
+            <Tab label="Задания" icon={<AssignmentIcon />} iconPosition="start" />
+          )}
           <Tab label="Карьера" icon={<WorkIcon />} iconPosition="start" />
           <Tab label="Навыки" icon={<EmojiEventsIcon />} iconPosition="start" />
         </Tabs>

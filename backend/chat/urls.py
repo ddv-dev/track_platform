@@ -6,6 +6,7 @@ from .views import (
     ChatMessageCreateView,
     ChatMessageMarkReadView,
     TrackCuratorsView,
+    UserSearchView,
 )
 
 urlpatterns = [
@@ -22,5 +23,6 @@ urlpatterns = [
         ChatMessageMarkReadView.as_view(),
         name="chat-mark-read",
     ),
-     path('curators/', TrackCuratorsView.as_view(), name='track-curators')
+    path("curators/", TrackCuratorsView.as_view(), name="track-curators"),
+    path("users/search/", UserSearchView.as_view(), name="user-search"),
 ]

@@ -1,14 +1,19 @@
+// frontend/src/pages/ChatPage.jsx
 import React, { useEffect, useState } from 'react';
-import { Container, Paper, List, ListItem, ListItemText, Typography, CircularProgress } from '@mui/material';
+import { Container, Typography, Paper, List, ListItem, ListItemText, CircularProgress, Tabs, Tab, Box } from '@mui/material';
 import { chatService } from '../services/chat.service';
 import { ChatRoom } from '../components/chat/ChatRoom';
+import { UserSearch } from '../components/chat/UserSearch';
 import { useAuth } from '../hooks/useAuth';
+import GroupIcon from '@mui/icons-material/Group';
+import PersonIcon from '@mui/icons-material/Person';
 
 export const ChatPage = () => {
+  const { user } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [tabValue, setTabValue] = useState(0); // 0 - групповые, 1 - личные
 
   useEffect(() => {
     loadRooms();
@@ -17,25 +22,23 @@ export const ChatPage = () => {
   const loadRooms = async () => {
     try {
       const data = await chatService.getRooms();
-
-      // --- Логика безопасного извлечения массива комнат ---
       let roomsArray = [];
-      if (Array.isArray(data)) {
-        roomsArray = data; // Это массив
-      } else if (data?.results && Array.isArray(data.results)) {
-        roomsArray = data.results; // Это объект с пагинацией
-      } else if (data && typeof data === 'object') {
-        // Если это объект, но не массив, возможно, это одна комната
-        roomsArray = [data];
-      }
-      // ---------------------------------------------------
-
+      if (Array.isArray(data)) roomsArray = data;
+      else if (data?.results && Array.isArray(data.results)) roomsArray = data.results;
+      else if (data && typeof data === 'object') roomsArray = [data];
       setRooms(roomsArray);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const groupRooms = rooms.filter(room => room.is_group_chat === true);
+  const privateRooms = rooms.filter(room => !room.is_group_chat);
+
+  const handleChatCreated = () => {
+    loadRooms(); // обновить список чатов после создания нового
   };
 
   if (loading) {
@@ -51,34 +54,72 @@ export const ChatPage = () => {
   return (
     <Container className="py-8">
       <Typography variant="h4" className="mb-6 text-darkBlue font-bold">
-        Чаты с кураторами
+        Чаты
       </Typography>
+
+      {/* Поиск пользователей для создания новых чатов */}
+      <UserSearch currentUser={user} onChatCreated={handleChatCreated} />
+
+      <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} className="mb-4">
+        <Tab label="Групповые чаты" icon={<GroupIcon />} iconPosition="start" />
+        <Tab label="Личные чаты" icon={<PersonIcon />} iconPosition="start" />
+      </Tabs>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Список комнат */}
+        {/* Список чатов */}
         <Paper className="h-[600px] overflow-y-auto">
-          <List>
-            {rooms.map((room) => (
-              <ListItem
-                button
-                key={room.id}
-                selected={selectedRoom?.id === room.id}
-                onClick={() => setSelectedRoom(room)}
-              >
-                <ListItemText
-                  primary={`Трек #${room.track}`}
-                  secondary={room.last_message?.message?.slice(0, 50) || 'Нет сообщений'}
-                />
-              </ListItem>
-            ))}
-            {rooms.length === 0 && (
-              <ListItem>
-                <ListItemText primary="У вас пока нет активных чатов" />
-              </ListItem>
-            )}
-          </List>
+          {tabValue === 0 && (
+            <List>
+              {groupRooms.length === 0 ? (
+                <ListItem>
+                  <ListItemText primary="Нет групповых чатов" />
+                </ListItem>
+              ) : (
+                groupRooms.map((room) => (
+                  <ListItem
+                    button
+                    key={room.id}
+                    selected={selectedRoom?.id === room.id}
+                    onClick={() => setSelectedRoom(room)}
+                  >
+                    <ListItemText
+                      primary={room.title || `Группа трека #${room.track}`}
+                      secondary={room.last_message?.message?.slice(0, 50) || 'Нет сообщений'}
+                    />
+                  </ListItem>
+                ))
+              )}
+            </List>
+          )}
+          {tabValue === 1 && (
+            <List>
+              {privateRooms.length === 0 ? (
+                <ListItem>
+                  <ListItemText primary="Нет личных чатов" />
+                </ListItem>
+              ) : (
+                privateRooms.map((room) => {
+                  const otherUser = room.student?.id === user?.id ? room.curator : room.student;
+                  return (
+                    <ListItem
+                      button
+                      key={room.id}
+                      selected={selectedRoom?.id === room.id}
+                      onClick={() => setSelectedRoom(room)}
+                    >
+                      <ListItemText
+                        primary={otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Пользователь'}
+                        secondary={room.last_message?.message?.slice(0, 50) || 'Нет сообщений'}
+                      />
+                    </ListItem>
+                  );
+                })
+              )}
+            </List>
+          )}
         </Paper>
 
-        {/* Окно выбранного чата */}
+        {/* Окно чата */}
         <div className="md:col-span-2 h-[600px]">
           {selectedRoom ? (
             <ChatRoom roomId={selectedRoom.id} currentUser={user} />

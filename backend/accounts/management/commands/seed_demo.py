@@ -19,10 +19,10 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Расширенное заполнение БД тестовыми данными (25 треков, кураторы, преподаватели, студенты, контент, прогресс, чаты)"
+    help = "Заполнение БД тестовыми данными (25 треков, кураторы, преподаватели, студенты, контент, прогресс, чаты)"
 
     def handle(self, *args, **options):
-        self.stdout.write("🚀 Начинаем расширенное заполнение БД...")
+        self.stdout.write("🚀 Начинаем заполнение БД...")
 
         self.clean_data()
         self.create_directions_and_tracks()
@@ -33,9 +33,7 @@ class Command(BaseCommand):
         self.create_progress()
         self.create_chats()
 
-        self.stdout.write(
-            self.style.SUCCESS("✅ База данных успешно заполнена расширенными данными!")
-        )
+        self.stdout.write(self.style.SUCCESS("✅ База данных успешно заполнена!"))
 
     def clean_data(self):
         self.stdout.write("Очистка старых данных...")
@@ -89,8 +87,6 @@ class Command(BaseCommand):
             dir_obj = Direction.objects.create(**d)
             directions[key] = dir_obj
 
-        # ----- Полные описания для каждого трека (можно взять из предыдущей версии, здесь сокращённо) -----
-        # Для краткости оставлю только названия и краткие описания, но вы можете вставить свои full_description
         tracks_list = [
             {
                 "direction": directions["business"],
@@ -299,35 +295,94 @@ class Command(BaseCommand):
                 password="admin123",
                 role="admin",
             )
-        # Кураторы (5 штук)
+
+        # Кураторы (25 штук, по одному на трек)
         curators = []
-        curator_names = ["Анна", "Дмитрий", "Елена", "Сергей", "Мария"]
-        for i, name in enumerate(curator_names, 1):
+        curator_names = [
+            "Анна",
+            "Дмитрий",
+            "Елена",
+            "Сергей",
+            "Мария",
+            "Ольга",
+            "Игорь",
+            "Татьяна",
+            "Алексей",
+            "Наталья",
+            "Владимир",
+            "Ксения",
+            "Павел",
+            "Юлия",
+            "Артём",
+            "Екатерина",
+            "Михаил",
+            "Анастасия",
+            "Андрей",
+            "Виктория",
+            "Николай",
+            "Светлана",
+            "Денис",
+            "Людмила",
+            "Григорий",
+        ]
+        for i, name in enumerate(curator_names[:25], 1):
             curator = User.objects.create_user(
                 username=f"curator_{name.lower()}",
                 email=f"curator_{i}@example.com",
                 password="curator123",
                 first_name=name,
-                last_name="Кураторская",
+                last_name="Куратор",
                 role="curator",
             )
             curators.append(curator)
 
-        # Преподаватели (5 штук)
+        # Преподаватели (50 штук, по два на трек)
         teachers = []
-        teacher_names = ["Пётр", "Ольга", "Иван", "Светлана", "Алексей"]
-        for i, name in enumerate(teacher_names, 1):
+        teacher_first = [
+            "Пётр",
+            "Ольга",
+            "Иван",
+            "Светлана",
+            "Алексей",
+            "Елена",
+            "Дмитрий",
+            "Мария",
+            "Сергей",
+            "Татьяна",
+            "Андрей",
+            "Наталья",
+            "Владимир",
+            "Ирина",
+            "Михаил",
+            "Анна",
+            "Николай",
+            "Евгения",
+            "Юрий",
+            "Кристина",
+            "Виктор",
+            "Алиса",
+            "Станислав",
+            "Вероника",
+            "Роман",
+            "Валерия",
+            "Константин",
+            "Антонина",
+            "Георгий",
+            "Зоя",
+        ]
+        for i in range(1, 51):
+            first = teacher_first[(i - 1) % len(teacher_first)]
             teacher = User.objects.create_user(
-                username=f"teacher_{name.lower()}",
+                username=f"teacher_{first.lower()}_{i}",
                 email=f"teacher_{i}@example.com",
                 password="teacher123",
-                first_name=name,
+                first_name=first,
                 last_name="Преподаватель",
                 role="teacher",
             )
             teachers.append(teacher)
 
-        # Студенты (30 штук)
+        # Студенты (25 треков * 6 = 150)
         students = []
         first_names = [
             "Алексей",
@@ -345,6 +400,21 @@ class Command(BaseCommand):
             "Мария",
             "Ольга",
             "Татьяна",
+            "Кирилл",
+            "Виктор",
+            "Анастасия",
+            "Андрей",
+            "Екатерина",
+            "Юлия",
+            "Василий",
+            "Ксения",
+            "Глеб",
+            "Дарья",
+            "Илья",
+            "Маргарита",
+            "Евгений",
+            "София",
+            "Алиса",
         ]
         last_names = [
             "Иванов",
@@ -357,8 +427,18 @@ class Command(BaseCommand):
             "Соколов",
             "Михайлов",
             "Новиков",
+            "Фёдоров",
+            "Морозов",
+            "Волков",
+            "Алексеев",
+            "Лебедев",
+            "Семёнов",
+            "Егоров",
+            "Павлов",
+            "Козлов",
+            "Степанов",
         ]
-        for i in range(1, 31):
+        for i in range(1, 151):
             first = random.choice(first_names)
             last = random.choice(last_names)
             username = f"{first.lower()}_{last.lower()}_{i}"
@@ -380,14 +460,18 @@ class Command(BaseCommand):
         )
 
     def assign_curators_and_teachers_to_tracks(self):
-        self.stdout.write("Привязка кураторов и преподавателей к трекам...")
+        self.stdout.write(
+            "Привязка кураторов (один на трек) и преподавателей (два на трек)..."
+        )
         for idx, track in enumerate(self.tracks):
-            # Кураторы – равномерно
-            curator = self.curators[idx % len(self.curators)]
-            track.curators.add(curator)
-            # Преподаватели – тоже равномерно (можно назначать по одному или несколько)
-            teacher = self.teachers[idx % len(self.teachers)]
-            track.teachers.add(teacher)
+            # Куратор – однозначно
+            curator = self.curators[idx]  # 1:1
+            track.curator = curator
+            track.save()
+            # Преподаватели – два на трек
+            teacher1 = self.teachers[idx * 2]
+            teacher2 = self.teachers[idx * 2 + 1]
+            track.teachers.add(teacher1, teacher2)
         self.stdout.write("✅ Кураторы и преподаватели привязаны.")
 
     def create_educational_content(self):
@@ -425,7 +509,6 @@ class Command(BaseCommand):
         self.stdout.write("✅ Учебный контент создан.")
 
     def _create_tasks_for_track(self, track):
-        # Упрощённая генерация заданий (можно заменить готовыми шаблонами из предыдущих версий)
         tasks_data = []
         # 3 теоретических (single/multiple)
         for i in range(1, 4):
@@ -475,114 +558,108 @@ class Command(BaseCommand):
                     )
 
     def create_groups_and_enrollments(self):
-        self.stdout.write("Создание групп и зачисление студентов...")
-        # Для каждого трека создаём группу (если нет)
+        self.stdout.write(
+            "Создание групп и зачисление студентов (каждый студент – на один трек)..."
+        )
+        # Для каждого трека создаём группу
         group_map = {}
         for track in self.tracks:
             group, _ = Group.objects.get_or_create(
                 track=track,
-                defaults={
-                    "name": f"Группа {track.name}",
-                    "curator": track.curators.first(),
-                },
+                defaults={"name": f"Группа {track.name}", "curator": track.curator},
             )
             group_map[track.id] = group
 
-        # Каждый студент подаёт заявку на 2-3 трека, и мы принимаем её
-        for student in self.students:
-            num_tracks = random.randint(2, 3)
-            selected_tracks = random.sample(
-                self.tracks, min(num_tracks, len(self.tracks))
-            )
-            for track in selected_tracks:
-                # Создаём заявку (если нет активной)
+        # Распределяем студентов по трекам (каждый студент попадает на уникальный трек, 6 на трек)
+        student_per_track = 6
+        for idx, track in enumerate(self.tracks):
+            start = idx * student_per_track
+            end = start + student_per_track
+            track_students = self.students[start:end]
+            for student in track_students:
+                # Создаём заявку и сразу принимаем
                 req, _ = EnrollmentRequest.objects.get_or_create(
                     student=student, track=track, defaults={"status": "pending"}
                 )
-                if req.status == "pending":
-                    # Принимаем сразу (демо)
-                    req.status = "accepted"
-                    req.reviewed_by = track.curators.first()
-                    req.save()
-                    # Зачисляем в группу
-                    student.group = group_map[track.id]
-                    student.save()
-                    # Создаём прогресс
-                    UserProgress.objects.get_or_create(user=student, track=track)
+                req.status = "accepted"
+                req.reviewed_by = track.curator
+                req.save()
+                # Зачисляем в группу
+                student.group = group_map[track.id]
+                student.save()
+                # Создаём прогресс
+                UserProgress.objects.get_or_create(user=student, track=track)
         self.stdout.write("✅ Группы созданы, студенты зачислены.")
 
     def create_progress(self):
-        self.stdout.write(
-            "Создание прогресса студентов (отметка выполненных заданий)..."
-        )
-        for student in self.students:
-            if not student.group:
-                continue
-            # Для каждого трека, в котором студент состоит
-            tracks = Track.objects.filter(groups__students=student)
-            for track in tracks:
-                progress = UserProgress.objects.filter(
-                    user=student, track=track
-                ).first()
-                if not progress:
-                    continue
-                tasks = list(track.tasks.all())
-                if tasks:
-                    # Отметим случайное количество заданий как выполненные (от 0 до половины)
-                    completed_count = random.randint(0, len(tasks) // 2)
-                    for task in random.sample(tasks, k=completed_count):
-                        progress.completed_tasks.add(task)
-                # Отметим несколько пунктов чек-листа
-                checklist_items = []
-                for checklist in track.checklists.all():
-                    checklist_items.extend(checklist.items.all())
-                if checklist_items:
-                    completed_items_count = random.randint(0, len(checklist_items) // 2)
-                    for item in random.sample(checklist_items, k=completed_items_count):
-                        progress.checklist_items.add(item)
-                progress.save()
-        self.stdout.write("✅ Прогресс студентов создан.")
-
-    def create_chats(self):
-        self.stdout.write("Создание чатов (личные и групповые)...")
-        # Личные чаты студента с каждым куратором трека, в котором студент учится
+        self.stdout.write("Отметка выполненных заданий (случайный прогресс)...")
         for student in self.students:
             if not student.group:
                 continue
             track = student.group.track
-            for curator in track.curators.all():
-                room, created = ChatRoom.objects.get_or_create(
-                    track=track,
-                    student=student,
-                    curator=curator,
-                    is_group_chat=False,
-                )
-                if created:
+            progress = UserProgress.objects.filter(user=student, track=track).first()
+            if not progress:
+                continue
+            tasks = list(track.tasks.all())
+            if tasks:
+                # От 1 до 3 заданий выполнено (демо)
+                completed_count = random.randint(1, min(3, len(tasks)))
+                for task in random.sample(tasks, k=completed_count):
+                    progress.completed_tasks.add(task)
+            checklist_items = []
+            for checklist in track.checklists.all():
+                checklist_items.extend(checklist.items.all())
+            if checklist_items:
+                completed_items_count = random.randint(1, min(3, len(checklist_items)))
+                for item in random.sample(checklist_items, k=completed_items_count):
+                    progress.checklist_items.add(item)
+            progress.save()
+        self.stdout.write("✅ Прогресс студентов создан.")
+
+    def create_chats(self):
+        self.stdout.write("Создание групповых чатов и личных чатов студент-куратор...")
+        # Для каждого трека создаём групповой чат (без поля title, просто связь)
+        for track in self.tracks:
+            group_chat, created = ChatRoom.objects.get_or_create(
+                track=track,
+                is_group_chat=True,
+            )
+            # Добавляем куратора и всех студентов группы
+            if track.curator:
+                group_chat.participants.add(track.curator)
+            group = Group.objects.filter(track=track).first()
+            if group:
+                for student in group.students.all():
+                    group_chat.participants.add(student)
+            if created:
+                # Приветственное сообщение от куратора
+                if track.curator:
                     ChatMessage.objects.create(
-                        room=room,
-                        user=curator,
-                        message=f"Привет! Я куратор трека «{track.name}». Рад(а) помочь.",
-                        is_read=False,
+                        room=group_chat,
+                        user=track.curator,
+                        message=f"Добро пожаловать в групповой чат трека «{track.name}»!",
                     )
-                    if random.random() < 0.7:
-                        ChatMessage.objects.create(
-                            room=room,
-                            user=student,
-                            message="Спасибо! С чего лучше начать?",
-                            is_read=False,
-                        )
-        # Групповой чат трека (все студенты + кураторы) – если нужно
-        # for track in self.tracks:
-        #     group_chat, _ = ChatRoom.objects.get_or_create(
-        #         track=track,
-        #         is_group_chat=True,
-        #         defaults={"title": f"Общий чат {track.name}"}
-        #     )
-        #     for student in track.groups.first().students.all():
-        #         group_chat.participants.add(student)
-        #     for curator in track.curators.all():
-        #         group_chat.participants.add(curator)
-        self.stdout.write("✅ Чаты и сообщения созданы.")
+        # Личные чаты студент-куратор (уже должны быть созданы при зачислении, но добавим для полноты)
+        for student in self.students:
+            if not student.group or not student.group.track:
+                continue
+            track = student.group.track
+            curator = track.curator
+            if not curator:
+                continue
+            private_chat, created = ChatRoom.objects.get_or_create(
+                track=track,
+                student=student,
+                curator=curator,
+                is_group_chat=False,
+            )
+            if created:
+                ChatMessage.objects.create(
+                    room=private_chat,
+                    user=curator,
+                    message=f"Здравствуйте, {student.first_name}! Я куратор трека «{track.name}». Рад(а) помочь.",
+                )
+        self.stdout.write("✅ Чаты созданы.")
 
     def _random_guide_title(self, track_name):
         titles = [
