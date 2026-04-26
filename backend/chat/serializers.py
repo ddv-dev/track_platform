@@ -18,7 +18,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatRoom
-        fields = "__all__"  # или перечислите все поля
+        fields = '__all__'
         read_only_fields = ("id", "created_at", "is_active")
         extra_kwargs = {"curator": {"required": False}}  # <-- это ключевое
 

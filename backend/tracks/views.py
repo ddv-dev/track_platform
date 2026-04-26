@@ -338,22 +338,31 @@ class CreateEnrollmentRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, track_id):
-        track = get_object_or_404(Track, id=track_id)
         if request.user.role != "student":
             return Response(
                 {"error": "Только студенты могут подавать заявки"}, status=400
             )
+
+        # ← Проверка: у студента уже есть группа?
+        if request.user.group is not None:
+            return Response(
+                {"error": "Вы уже зачислены на трек. Нельзя подать заявку на другой."},
+                status=400,
+            )
+
+        track = get_object_or_404(Track, id=track_id)
+
+        # Проверка: нет ли уже активной заявки на этот трек
         if EnrollmentRequest.objects.filter(
             student=request.user, track=track, status="pending"
         ).exists():
-            return Response({"error": "У вас уже есть активная заявка"}, status=400)
-        if request.user.group and request.user.group.track == track:
-            return Response({"error": "Вы уже зачислены на этот трек"}, status=400)
+            return Response(
+                {"error": "У вас уже есть активная заявка на этот трек"}, status=400
+            )
 
         enrollment = EnrollmentRequest.objects.create(student=request.user, track=track)
-        return Response(
-            EnrollmentRequestSerializer(enrollment).data, status=status.HTTP_201_CREATED
-        )
+        serializer = EnrollmentRequestSerializer(enrollment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class CuratorEnrollmentRequestsView(APIView):
@@ -414,7 +423,8 @@ class ReviewEnrollmentRequestView(APIView):
 
             # 3. Создаём или получаем групповой чат трека
             group_chat, created = ChatRoom.objects.get_or_create(
-                track=track, is_group_chat=True, defaults={"title": track.name}
+                track=track,
+                is_group_chat=True,
             )
 
             # 4. Добавляем студента и куратора в участники

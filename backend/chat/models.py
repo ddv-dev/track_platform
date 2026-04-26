@@ -22,6 +22,7 @@ class ChatRoom(models.Model):
         null=True,
         blank=True,
     )
+    title = models.CharField(max_length=200, blank=True)
     is_group_chat = models.BooleanField(default=False)
     participants = models.ManyToManyField(User, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

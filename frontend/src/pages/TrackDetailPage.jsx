@@ -97,7 +97,7 @@ export const TrackDetailPage = () => {
   if (loading) return <div className="flex justify-center items-center h-screen"><CircularProgress sx={{ color: '#0541F0' }} /></div>;
   if (!track) return <Container><Alert severity="error">Трек не найден</Alert></Container>;
 
-  const isEnrolled = user && user.group && user.group.track?.id === parseInt(id);
+  const isEnrolled = user && user.group !== null;
   const showEnrollButton = isAuthenticated && user?.role === 'student' && !isEnrolled && !hasPendingRequest;
 
   return (
@@ -109,7 +109,9 @@ export const TrackDetailPage = () => {
           <div className="flex flex-wrap gap-2 items-center">
             <Chip label={track.direction.name} sx={{ bgcolor: '#37EBFF', color: '#0A1E64', fontWeight: 600 }} />
             {track.duration && <Chip label={track.duration} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />}
-            {showEnrollButton && (
+            
+            
+            {showEnrollButton && !isEnrolled && (
               <Button
                 variant="contained"
                 onClick={handleEnroll}

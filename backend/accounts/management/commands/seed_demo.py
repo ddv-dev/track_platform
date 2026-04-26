@@ -618,28 +618,37 @@ class Command(BaseCommand):
 
     def create_chats(self):
         self.stdout.write("Создание групповых чатов и личных чатов студент-куратор...")
-        # Для каждого трека создаём групповой чат (без поля title, просто связь)
         for track in self.tracks:
+            # Групповой чат для трека с названием трека в качестве title
             group_chat, created = ChatRoom.objects.get_or_create(
                 track=track,
                 is_group_chat=True,
+                defaults={'title': track.name}
             )
-            # Добавляем куратора и всех студентов группы
+            # Если чат уже существовал, но title не был заполнен (например, при повторном запуске seed)
+            if not created and not group_chat.title:
+                group_chat.title = track.name
+                group_chat.save()
+
+            # Добавляем куратора в участники
             if track.curator:
                 group_chat.participants.add(track.curator)
+
+            # Добавляем всех студентов группы
             group = Group.objects.filter(track=track).first()
             if group:
                 for student in group.students.all():
                     group_chat.participants.add(student)
-            if created:
-                # Приветственное сообщение от куратора
-                if track.curator:
-                    ChatMessage.objects.create(
-                        room=group_chat,
-                        user=track.curator,
-                        message=f"Добро пожаловать в групповой чат трека «{track.name}»!",
-                    )
-        # Личные чаты студент-куратор (уже должны быть созданы при зачислении, но добавим для полноты)
+
+            # При создании чата – приветственное сообщение от куратора
+            if created and track.curator:
+                ChatMessage.objects.create(
+                    room=group_chat,
+                    user=track.curator,
+                    message=f"Добро пожаловать в групповой чат трека «{track.name}»!"
+                )
+
+        # Личные чаты студент-куратор (создаём при необходимости)
         for student in self.students:
             if not student.group or not student.group.track:
                 continue
@@ -657,7 +666,7 @@ class Command(BaseCommand):
                 ChatMessage.objects.create(
                     room=private_chat,
                     user=curator,
-                    message=f"Здравствуйте, {student.first_name}! Я куратор трека «{track.name}». Рад(а) помочь.",
+                    message=f"Здравствуйте, {student.first_name}! Я куратор трека «{track.name}». Рад(а) помочь."
                 )
         self.stdout.write("✅ Чаты созданы.")
 

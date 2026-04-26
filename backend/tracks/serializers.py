@@ -112,6 +112,7 @@ class TrackDetailSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
     show_tasks = serializers.SerializerMethodField()
 
+
     class Meta:
         model = Track
         fields = (
@@ -131,10 +132,10 @@ class TrackDetailSerializer(serializers.ModelSerializer):
         )
 
     def get_show_tasks(self, obj):
-        request = self.context.get("request")
+        request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return request.user.role == "student"
+        return request.user.role == 'student'
 
 
 class EnrollmentRequestSerializer(serializers.ModelSerializer):
