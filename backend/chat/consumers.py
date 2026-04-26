@@ -2,20 +2,22 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
-from .models import ChatRoom, ChatMessage
 
 User = get_user_model()
-
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
         self.room_group_name = f"chat_{self.room_id}"
 
-        # Проверка аутентификации
         if self.scope["user"].is_anonymous:
             await self.close()
         else:
+            # Проверяем, существует ли комната перед добавлением в группу
+            room_exists = await self.room_exists()
+            if not room_exists:
+                await self.close()
+                return
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
             await self.accept()
 
@@ -27,10 +29,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message = data["message"]
         user = self.scope["user"]
 
-        # Сохраняем сообщение в БД
         saved_message = await self.save_message(user, message)
 
-        # Отправляем сообщение в группу
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -55,7 +55,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @database_sync_to_async
+    def room_exists(self):
+        from .models import ChatRoom
+        try:
+            return ChatRoom.objects.filter(id=self.room_id).exists()
+        except Exception:
+            return False
+
+    @database_sync_to_async
     def save_message(self, user, message):
+        from .models import ChatRoom, ChatMessage
         room = ChatRoom.objects.get(id=self.room_id)
         msg = ChatMessage.objects.create(room=room, user=user, message=message)
         return {
