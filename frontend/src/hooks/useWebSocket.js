@@ -10,13 +10,23 @@ export const useWebSocket = (roomId) => {
     const ws = new WebSocket(`ws://localhost:8000/ws/chat/${roomId}/?token=${token}`);
     wsRef.current = ws;
 
-    ws.onopen = () => console.log('WebSocket connected');
+    ws.onopen = () => {
+      console.log(`WebSocket connected to room ${roomId}`);
+    };
+
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
+      console.log('Message received:', data);
       setMessages(prev => [...prev, data]);
     };
-    ws.onerror = (err) => console.error('WebSocket error', err);
-    ws.onclose = () => console.log('WebSocket closed');
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    ws.onclose = (event) => {
+      console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+    };
 
     return () => ws.close();
   }, [roomId]);
