@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -12,6 +13,9 @@ import { ChatPage } from './pages/ChatPage';
 import { PracticalReviewsPage } from './pages/PracticalReviewsPage';
 import { CuratorRequestsPage } from './pages/CuratorRequestsPage';
 import { CuratorStatsPage } from './pages/CuratorStatsPage';
+// Импортируем новые компоненты
+import { TeacherTasksPage } from './pages/TeacherTasksPage.jsx';
+import { TeacherStatsPage } from './pages/TeacherStatsPage';
 import { useAuth } from './hooks/useAuth';
 
 const PrivateRoute = ({ children }) => {
@@ -22,6 +26,12 @@ const PrivateRoute = ({ children }) => {
 const CuratorRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   return isAuthenticated && user?.role === 'curator' ? children : <Navigate to="/" />;
+};
+
+// Создаём защитник для маршрутов преподавателя
+const TeacherRoute = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  return isAuthenticated && user?.role === 'teacher' ? children : <Navigate to="/" />;
 };
 
 function App() {
@@ -39,6 +49,9 @@ function App() {
         <Route path="/curator/reviews" element={<CuratorRoute><PracticalReviewsPage /></CuratorRoute>} />
         <Route path="/curator/requests" element={<CuratorRoute><CuratorRequestsPage /></CuratorRoute>} />
         <Route path="/curator/stats" element={<CuratorRoute><CuratorStatsPage /></CuratorRoute>} />
+        {/* Новые маршруты для преподавателя */}
+        <Route path="/teacher/tasks" element={<TeacherRoute><TeacherTasksPage /></TeacherRoute>} />
+        <Route path="/teacher/stats" element={<TeacherRoute><TeacherStatsPage /></TeacherRoute>} />
       </Routes>
       <Toaster position="top-right" />
     </BrowserRouter>
