@@ -21,4 +21,8 @@ export const chatService = {
     const response = await api.post(`/chat/rooms/${roomId}/mark-read/`);
     return response.data;
   },
+  async createPrivateRoom(userId) {
+    const response = await api.post('/chat/private/create/', { user_id: userId });
+    return response.data;
+  }
 };

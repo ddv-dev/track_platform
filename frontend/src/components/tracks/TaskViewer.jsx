@@ -9,21 +9,28 @@ export const TaskViewer = ({ task, trackId, onTaskUpdate }) => {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
-  const isAuto = task.task_type === 'single' || task.task_type === 'multiple';
-  const isCompleted = task.completed;
-
-  // Сброс при переходе к другому заданию
   useEffect(() => {
+    // Сброс при смене задания
     setAnswer('');
     setResult(null);
   }, [task]);
 
+  const isAuto = task.task_type === 'single' || task.task_type === 'multiple';
+  const isCompleted = task.completed;
+
+  const prepareAnswer = () => {
+    if (task.task_type === 'multiple' && Array.isArray(answer)) {
+      return answer.join(',');
+    }
+    return answer;
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const response = await taskService.submitTask(task.id, answer);
+      const finalAnswer = prepareAnswer();
+      const response = await taskService.submitTask(task.id, finalAnswer);
       if (isAuto) {
-        // Авто-проверка: сразу получаем результат
         setResult({ isCorrect: response.is_correct, message: response.is_correct ? 'Правильно!' : 'Неправильно. Попробуйте ещё раз.' });
         if (response.is_correct) {
           toast.success(`Задание выполнено! +${task.points} баллов`);
@@ -32,6 +39,7 @@ export const TaskViewer = ({ task, trackId, onTaskUpdate }) => {
           toast.error('Ответ неверный');
         }
       } else {
+        // Практика
         setResult({ isCorrect: null, message: 'Ответ отправлен на проверку куратору.' });
         toast.success('Ответ отправлен на проверку');
         onTaskUpdate();
@@ -68,21 +76,51 @@ export const TaskViewer = ({ task, trackId, onTaskUpdate }) => {
             {task.options?.map(opt => (
               <FormControlLabel
                 key={opt.id}
-                control={<Checkbox checked={answer.split(',').includes(opt.id.toString())} onChange={(e) => {
-                  const values = answer ? answer.split(',') : [];
-                  if (e.target.checked) values.push(opt.id.toString());
-                  else values.splice(values.indexOf(opt.id.toString()), 1);
-                  setAnswer(values.join(','));
-                }} />}
+                control={
+                  <Checkbox
+                    checked={answer.includes(opt.id.toString())}
+                    onChange={(e) => {
+                      const values = answer ? (Array.isArray(answer) ? answer : answer.split(',')) : [];
+                      if (e.target.checked) {
+                        values.push(opt.id.toString());
+                      } else {
+                        const idx = values.indexOf(opt.id.toString());
+                        if (idx !== -1) values.splice(idx, 1);
+                      }
+                      setAnswer(values);
+                    }}
+                  />
+                }
                 label={opt.text}
               />
             ))}
           </FormControl>
         );
       case 'text':
-        return <TextField fullWidth multiline rows={4} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Введите ваш ответ..." variant="outlined" />;
+        return (
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder="Введите ваш ответ..."
+            variant="outlined"
+          />
+        );
       case 'code':
-        return <TextField fullWidth multiline rows={6} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Напишите код..." variant="outlined" fontFamily="monospace" />;
+        return (
+          <TextField
+            fullWidth
+            multiline
+            rows={6}
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder="Напишите код..."
+            variant="outlined"
+            fontFamily="monospace"
+          />
+        );
       default:
         return null;
     }

@@ -4,12 +4,16 @@ from accounts.serializers import UserSerializer
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
-    user_info = UserSerializer(source="user", read_only=True)
+    user_info = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
-        fields = ("id", "user", "user_info", "message", "is_read", "created_at")
-        read_only_fields = ("user", "is_read", "created_at")
+        fields = "__all__"
+
+    def get_user_info(self, obj):
+        from accounts.serializers import UserSerializer
+
+        return UserSerializer(obj.user).data
 
 
 class ChatRoomSerializer(serializers.ModelSerializer):
@@ -18,7 +22,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatRoom
-        fields = '__all__'
+        fields = "__all__"
         read_only_fields = ("id", "created_at", "is_active")
         extra_kwargs = {"curator": {"required": False}}  # <-- это ключевое
 

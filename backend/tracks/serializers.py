@@ -111,33 +111,19 @@ class TrackDetailSerializer(serializers.ModelSerializer):
     checklists = ChecklistSerializer(many=True, read_only=True)
     tasks = TaskSerializer(many=True, read_only=True)
     show_tasks = serializers.SerializerMethodField()
-
+    curator = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Track
-        fields = (
-            "id",
-            "name",
-            "direction",
-            "short_description",
-            "full_description",
-            "career_paths",
-            "skills",
-            "duration",
-            "image",
-            "guides",
-            "checklists",
-            "tasks",
-            "show_tasks",
-        )
+        fields = ('id', 'name', 'direction', 'short_description', 'full_description',
+                  'career_paths', 'skills', 'duration', 'image', 'guides',
+                  'checklists', 'tasks', 'show_tasks', 'curator')
 
     def get_show_tasks(self, obj):
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return False
-        return request.user.role == 'student'
-
-
+        if request and request.user.is_authenticated:
+            return request.user.role == 'student'
+        return False
 class EnrollmentRequestSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.get_full_name", read_only=True)
     track_name = serializers.CharField(source="track.name", read_only=True)

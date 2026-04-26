@@ -5,6 +5,7 @@ from .views import (
     ChatRoomDetailView,
     ChatMessageCreateView,
     ChatMessageMarkReadView,
+    CreatePrivateChatView,
     TrackCuratorsView,
     UserSearchView,
 )
@@ -25,4 +26,5 @@ urlpatterns = [
     ),
     path("curators/", TrackCuratorsView.as_view(), name="track-curators"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
+    path('private/create/', CreatePrivateChatView.as_view(), name='create-private-chat'),
 ]

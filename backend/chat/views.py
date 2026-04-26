@@ -16,6 +16,48 @@ from .serializers import (
 from tracks.models import Track
 
 
+class CreatePrivateChatView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        other_user_id = request.data.get("user_id")
+        if not other_user_id:
+            return Response({"error": "user_id required"}, status=400)
+        other_user = get_object_or_404(User, id=other_user_id)
+
+        # Определяем, кто студент, кто преподаватель (или куратор)
+        student = None
+        mentor = None  # может быть curator или teacher
+        if request.user.role == "student" and other_user.role in ("teacher", "curator"):
+            student = request.user
+            mentor = other_user
+        elif (
+            request.user.role in ("teacher", "curator") and other_user.role == "student"
+        ):
+            student = other_user
+            mentor = request.user
+        else:
+            return Response(
+                {
+                    "error": "Чат может быть создан только между студентом и преподавателем/куратором"
+                },
+                status=400,
+            )
+
+        # Создаём или получаем существующий чат
+        chat_room, created = ChatRoom.objects.get_or_create(
+            student=student,
+            curator=mentor,  # используем поле curator для преподавателя/куратора
+            is_group_chat=False,
+            defaults={"track": None},  # можно указать track, если нужно
+        )
+        serializer = ChatRoomSerializer(chat_room)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
 class ChatRoomListView(generics.ListAPIView):
     serializer_class = ChatRoomSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -23,12 +65,17 @@ class ChatRoomListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == "curator":
-            return ChatRoom.objects.filter(curator=user, is_active=True)
+            qs = ChatRoom.objects.filter(curator=user, is_active=True)
         elif user.role == "student":
-            return ChatRoom.objects.filter(student=user, is_active=True)
+            qs = ChatRoom.objects.filter(student=user, is_active=True)
+        elif user.role == "teacher":
+            # Преподаватели видят групповые чаты своих треков
+            qs = ChatRoom.objects.filter(
+                is_group_chat=True, track__teachers=user, is_active=True
+            )
         else:
-            # Преподаватели и админы не видят чаты
-            return ChatRoom.objects.none()
+            qs = ChatRoom.objects.none()
+        return qs.select_related("student", "curator", "track")
 
 
 class ChatRoomCreateView(generics.CreateAPIView):
